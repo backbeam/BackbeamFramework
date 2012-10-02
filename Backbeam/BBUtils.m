@@ -1,0 +1,110 @@
+//
+//  BBUtils.m
+//  Callezeta
+//
+//  Created by Alberto Gimeno Brieba on 16/08/12.
+//  Copyright (c) 2012 Level Apps S.L. All rights reserved.
+//
+
+#import "BBUtils.h"
+#import <CommonCrypto/CommonDigest.h>
+#import <CommonCrypto/CommonCryptor.h>
+#import <CommonCrypto/CommonHMAC.h>
+
+@implementation BBUtils
+
++ (NSString*)urlEncode:(NSString*)str {
+	NSString* encodedString = (__bridge NSString *)CFURLCreateStringByAddingPercentEscapes(
+                                                                                  NULL,
+                                                                                  (__bridge CFStringRef) str,
+                                                                                  NULL,
+                                                                                  (CFStringRef)@"!*'();:@&=+$,/?%#[]",
+                                                                                  kCFStringEncodingUTF8 );
+	return encodedString;
+}
+
++ (NSString*)urlDecode:(NSString*)str {
+    NSString *result = [str stringByReplacingOccurrencesOfString:@"+" withString:@" "];
+    result = [result stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+    return result;
+}
+
++ (NSString*)queryString:(NSDictionary*)dict {
+    NSMutableString* parameterString = [[NSMutableString alloc] init];
+    for (NSString* key in dict.allKeys) {
+        NSString* value = [dict objectForKey:key];
+        [parameterString appendFormat:@"&%@=%@", [BBUtils urlEncode:key], [BBUtils urlEncode:value]];
+    }
+    if (parameterString.length > 0) {
+        [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
+    }
+    return [parameterString copy];
+}
+
+// oauth_token=e3CKYrOSd59eVyXDXjFRDqwsNS74rh88QmbflE6WuY&oauth_token_secret=btUAdTductIyZf36tupzhHpPTpBMNWcRJUa5HKcfo&oauth_callback_confirmed=true
++ (NSDictionary*)parseQueryString:(NSString*)str {
+    NSArray* components = [str componentsSeparatedByString:@"&"];
+    NSMutableDictionary* dict = [[NSMutableDictionary alloc] initWithCapacity:components.count];
+    for (NSString* component in components) {
+        NSRange r = [component rangeOfString:@"="];
+        if (r.location != NSNotFound) {
+            NSString* key = [BBUtils urlDecode:[component substringToIndex:r.location]];
+            NSString* value = [BBUtils urlDecode:[component substringFromIndex:r.location+r.length]];
+            [dict setObject:value forKey:key];
+        } else {
+            [dict setObject:@"" forKey:[BBUtils urlDecode:component]];
+        }
+    }
+    return dict;
+}
+
++ (NSString*)hexString:(NSData*)data {
+	NSMutableString *str = [NSMutableString stringWithCapacity:64];
+	int length = [data length];
+	char *bytes = malloc(sizeof(char) * length);
+    
+	[data getBytes:bytes length:length];
+    
+	int i = 0;
+    
+	for (; i < length; i++) {
+		[str appendFormat:@"%02.2hhx", bytes[i]];
+	}
+	free(bytes);
+    
+	return str;
+}
+
++ (NSData *)sha1:(NSData *)rawData {
+    CC_SHA1_CTX ctx;
+    uint8_t * hashBytes = NULL;
+    NSData * hash = nil;
+    
+    // Malloc a buffer to hold hash.
+    hashBytes = malloc( CC_SHA1_DIGEST_LENGTH * sizeof(uint8_t) );
+    memset((void *)hashBytes, 0x0, CC_SHA1_DIGEST_LENGTH);
+    
+    // Initialize the context.
+    CC_SHA1_Init(&ctx);
+    // Perform the hash.
+    CC_SHA1_Update(&ctx, (void *)[rawData bytes], [rawData length]);
+    // Finalize the output.
+    CC_SHA1_Final(hashBytes, &ctx);
+    
+    // Build up the SHA1 blob.
+    hash = [NSData dataWithBytes:(const void *)hashBytes length:(NSUInteger)CC_SHA1_DIGEST_LENGTH];
+    
+    if (hashBytes) free(hashBytes);
+    
+    return hash;
+}
+
++ (NSData*)hmacSha1:(NSData*)data withKey:(NSData*)key {
+    unsigned char cHMAC[CC_SHA1_DIGEST_LENGTH];
+    CCHmac(kCCHmacAlgSHA1, [key bytes], [key length], [data bytes], [data length], cHMAC);
+    NSData *hmac = [[NSData alloc] initWithBytes:cHMAC
+                                          length:sizeof(cHMAC)];
+    return hmac;
+}
+
+@end
