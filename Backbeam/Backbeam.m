@@ -91,7 +91,6 @@
 - (void)perform:(NSString*)httpMethod path:(NSString*)path params:(NSDictionary*)params body:(NSDictionary*)body success:(SuccessOperationBlock)success failure:(FailureOperationBlock)failure {
 
     NSString* url = [@"http://" stringByAppendingFormat:@"%@.%@:%d/api%@", self.project, self.host, self.port, path];
-    NSLog(@"url = %@", url);
     if (params) {
         url = [url stringByAppendingFormat:@"?%@", [BBUtils queryString:params]];
     }

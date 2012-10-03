@@ -14,9 +14,7 @@ typedef void(^FailureQueryBlock)(NSError* err);
 @interface BBQuery : NSObject
 
 + (BBQuery*)queryForEntity:(NSString*)entity;
-- (void)setQuery:(NSString*)query;
-- (void)addParam:(NSObject*)param;
-- (void)setParams:(NSArray*)params;
+- (void)setQuery:(NSString*)query withParams:(NSArray*)params;
 - (void)fetch:(NSInteger)limit offset:(NSInteger)offset success:(SuccessQueryBlock)success failure:(FailureQueryBlock)failure;
 - (void)next:(NSInteger)limit;
 

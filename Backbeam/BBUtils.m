@@ -32,8 +32,15 @@
 + (NSString*)queryString:(NSDictionary*)dict {
     NSMutableString* parameterString = [[NSMutableString alloc] init];
     for (NSString* key in dict.allKeys) {
-        NSString* value = [dict objectForKey:key];
-        [parameterString appendFormat:@"&%@=%@", [BBUtils urlEncode:key], [BBUtils urlEncode:value]];
+        id value = [dict objectForKey:key];
+        if ([value isKindOfClass:[NSArray class]]) {
+            NSArray* arr = (NSArray*)value;
+            for (NSObject* val in arr) {
+                [parameterString appendFormat:@"&%@=%@", [BBUtils urlEncode:key], [BBUtils urlEncode:[val description]]];
+            }
+        } else {
+            [parameterString appendFormat:@"&%@=%@", [BBUtils urlEncode:key], [BBUtils urlEncode:value]];
+        }
     }
     if (parameterString.length > 0) {
         [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
