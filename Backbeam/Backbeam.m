@@ -99,6 +99,7 @@
     if (body) {
         NSString* bodyString = [BBUtils queryString:body];
         [req setHTTPBody:[bodyString dataUsingEncoding:NSUTF8StringEncoding]];
+        [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     }
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id JSON) {
         

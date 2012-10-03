@@ -44,7 +44,7 @@
     [super viewDidLoad];
 }
 
-- (void)signup:(SuccessTwitterBlock)success failure:(FailureBlock)failure {
+- (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure {
     self.success = success;
     self.failure = failure;
     

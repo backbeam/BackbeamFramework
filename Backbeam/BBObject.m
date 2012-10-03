@@ -7,12 +7,13 @@
 //
 
 #import "BBObject.h"
+#import "Backbeam.h"
 
 @interface BBObject ()
 
 @property (nonatomic, strong) NSString* _identifier;
 @property (nonatomic, strong) NSString* _entity;
-@property (nonatomic, strong) NSMutableDictionary* fields;
+@property (nonatomic, strong) NSMutableDictionary* _fields;
 @property (nonatomic, strong) NSDate* _createdAt;
 @property (nonatomic, strong) NSDate* _updatedAt;
 
@@ -20,12 +21,22 @@
 
 @implementation BBObject
 
+- (id)initWithEntity:(NSString*)entity
+{
+    self = [super init];
+    if (self) {
+        self._entity = entity;
+        self._fields = [[NSMutableDictionary alloc] init];
+    }
+    return self;
+}
+
 - (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict
 {
     self = [super init];
     if (self) {
         self._entity = entity;
-        self.fields = [[NSMutableDictionary alloc] init];
+        self._fields = [[NSMutableDictionary alloc] init];
         
         for (NSString* key in dict.allKeys) {
             id value = [dict objectForKey:key];
@@ -36,7 +47,7 @@
             } else if ([key isEqualToString:@"_updated_at"]) {
                 self._updatedAt = [BBObject dateFromValue:value];
             } else if (![key hasPrefix:@"_"]) {
-                [self.fields setObject:value forKey:key];
+                [self._fields setObject:value forKey:key];
             }
         }
     }
@@ -65,7 +76,7 @@
 }
 
 - (NSString*)stringForKey:(NSString*)key {
-    id obj = [self.fields objectForKey:key];
+    id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[NSString class]]) {
         return (NSString*)obj;
     }
@@ -73,7 +84,7 @@
 }
 
 - (NSDate*)dateForKey:(NSString*)key {
-    id obj = [self.fields objectForKey:key];
+    id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[NSDate class]]) {
         return (NSDate*)obj;
     }
@@ -81,7 +92,7 @@
 }
 
 - (NSNumber*)numberForKey:(NSString*)key {
-    id obj = [self.fields objectForKey:key];
+    id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[NSNumber class]]) {
         return (NSNumber*)obj;
     }
@@ -89,7 +100,7 @@
 }
 
 - (BBObject*)referenceForKey:(NSString*)key {
-    id obj = [self.fields objectForKey:key];
+    id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[NSNumber class]]) {
         return (BBObject*)obj;
     }
@@ -97,11 +108,11 @@
 }
 
 - (void)setObject:(id)obj forKey:(NSString*)key {
-    [self.fields setObject:obj forKey:key];
+    [self._fields setObject:obj forKey:key];
 }
 
 - (id)objectForKey:(NSString*)key {
-    return [self.fields objectForKey:key];
+    return [self._fields objectForKey:key];
 }
 
 - (void)removeObjectForKey:(NSString*)key {
@@ -115,15 +126,63 @@
     } else {
         n = [NSNumber numberWithInteger:value];
     }
-    [self.fields setObject:n forKey:key];
+    [self._fields setObject:n forKey:key];
 }
 
-- (void)saveInBackground:(SuccessBlock)success failure:(FailureBlock)failure {
+- (void)insert:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    NSString* path = [NSString stringWithFormat:@"/%@", self._entity];
     
+    [[Backbeam instance] perform:@"POST" path:path params:nil body:self._fields success:^(id result) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure(self, [NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
+            return;
+        }
+        // TODO: check status
+        self._identifier = [result objectForKey:@"id"];
+        NSLog(@"result %@", result);
+        
+        success(self);
+    } failure:^(NSError* err) {
+        NSLog(@"error %@", err);
+        failure(self, err);
+    }];
 }
 
-- (void)deleteInBackground:(SuccessBlock)success failure:(FailureBlock)failure {
+- (void)update:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    // TODO: if not identifier
+    NSString* path = [NSString stringWithFormat:@"/%@/%@", self._entity, self._identifier];
     
+    NSLog(@"fields %@", self._fields);
+    [[Backbeam instance] perform:@"PUT" path:path params:nil body:self._fields success:^(id result) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure(self, [NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
+            return;
+        }
+        NSLog(@"result %@", result);
+        
+        success(self);
+    } failure:^(NSError* err) {
+        NSLog(@"error %@", err);
+        failure(self, err);
+    }];
+}
+
+- (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    // TODO: if not identifier
+    NSString* path = [NSString stringWithFormat:@"/%@/%@", self._entity, self._identifier];
+    
+    [[Backbeam instance] perform:@"DELETE" path:path params:nil body:self._fields success:^(id result) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure(self, [NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
+            return;
+        }
+        NSLog(@"result %@", result);
+        
+        success(self);
+    } failure:^(NSError* err) {
+        NSLog(@"error %@", err);
+        failure(self, err);
+    }];
 }
 
 

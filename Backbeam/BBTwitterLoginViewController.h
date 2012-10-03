@@ -18,6 +18,6 @@ typedef void(^FailureTwitterBlock)(NSError* err);
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
 
-- (void)signup:(SuccessTwitterBlock)success failure:(FailureBlock)failure;
+- (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure;
 
 @end

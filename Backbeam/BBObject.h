@@ -8,11 +8,13 @@
 
 #import <Foundation/Foundation.h>
 
-typedef void(^SuccessBlock)();
-typedef void(^FailureBlock)(NSError* err);
+@class BBObject;
+typedef void(^SuccessObjectBlock)(BBObject* object);
+typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
 
 @interface BBObject : NSObject
 
+- (id)initWithEntity:(NSString*)entity;
 - (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict;
 
 - (NSString*)identifier;
@@ -31,7 +33,8 @@ typedef void(^FailureBlock)(NSError* err);
 
 - (void)increment:(NSString*)key by:(NSInteger)value;
 
-- (void)saveInBackground:(SuccessBlock)success failure:(FailureBlock)failure;
-- (void)deleteInBackground:(SuccessBlock)success failure:(FailureBlock)failure;
+- (void)insert:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+- (void)update:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+- (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
 
 @end
