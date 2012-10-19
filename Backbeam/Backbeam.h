@@ -14,6 +14,8 @@
 typedef void(^SuccessOperationBlock)(id result);
 typedef void(^FailureOperationBlock)(NSError* err);
 
+typedef void(^SuccessImageBlock)(UIImage* img);
+
 @interface Backbeam : NSObject
 
 + (void)setHost:(NSString*)host port:(NSInteger)port;
@@ -24,5 +26,6 @@ typedef void(^FailureOperationBlock)(NSError* err);
 + (Backbeam*)instance;
 
 - (void)perform:(NSString*)httpMethod path:(NSString*)path params:(NSDictionary*)params body:(NSDictionary*)body success:(SuccessOperationBlock)success failure:(FailureOperationBlock)failure;
+- (UIImage*)image:(NSString*)identifier withSize:(CGSize)size success:(SuccessImageBlock)success;
 
 @end

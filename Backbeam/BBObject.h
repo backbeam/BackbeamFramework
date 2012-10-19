@@ -12,10 +12,12 @@
 typedef void(^SuccessObjectBlock)(BBObject* object);
 typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
 
+typedef void(^SuccessImageBlock)(UIImage* img);
+
 @interface BBObject : NSObject
 
 - (id)initWithEntity:(NSString*)entity;
-- (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict;
+- (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier;
 
 - (NSString*)identifier;
 - (NSString*)entity;
@@ -36,5 +38,7 @@ typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
 - (void)insert:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
 - (void)update:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
 - (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+
+- (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success;
 
 @end

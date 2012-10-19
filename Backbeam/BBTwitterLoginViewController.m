@@ -186,7 +186,7 @@
                                                 oauthTokenSecret, @"oauth_token_secret", nil];
                     [[Backbeam instance] perform:@"POST" path:@"/user/twitter/signup" params:nil body:postParams success:^(id result) {
                         NSDictionary* dict = result;
-                        BBObject* obj = [[BBObject alloc] initWithEntity:@"user" dictionary:dict];
+                        BBObject* obj = [[BBObject alloc] initWithEntity:@"user" dictionary:dict references:nil identifier:nil];
                         NSDictionary* extraInfo = [NSDictionary dictionaryWithObjectsAndKeys:userId, @"twitter_user_id",
                                                    screenName, @"twitter_screen_name",
                                                    oauthToken, @"oauth_token",

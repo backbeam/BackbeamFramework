@@ -25,6 +25,8 @@
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
 
+@property (nonatomic, strong) NSCache* cache;
+
 @end
 
 @implementation Backbeam
@@ -33,6 +35,7 @@
 {
     self = [super init];
     if (self) {
+        self.cache = [[NSCache alloc] init];
     }
     return self;
 }
@@ -111,5 +114,39 @@
     }];
     [operation start];
 }
+
+- (UIImage*)image:(NSString*)identifier withSize:(CGSize)size success:(SuccessImageBlock)success {
+    
+    CGFloat scale = [UIScreen mainScreen].scale;
+    int width  = (int)(size.width *scale);
+    int height = (int)(size.height*scale);
+    
+    NSString* url = [@"http://" stringByAppendingFormat:@"%@.%@:%d/file/%@?width=%d&height=%d",
+                     self.project, self.host, self.port, identifier, width, height];
+    
+    UIImage* img = [self.cache objectForKey:url];
+    if (img) return img;
+    
+    NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
+    
+    AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation* operation, id response) {
+        if (response) { // TODO: isKindOfClass:[NSData data] but was __NSCFData
+            NSData* data = (NSData*)response;
+            UIImage* img = [UIImage imageWithData:data scale:scale];
+            // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
+            [self.cache setObject:img forKey:url];
+            success(img);
+        } else {
+            // TODO error with unexpected response
+        }
+    } failure:^(AFHTTPRequestOperation* operation, NSError* error) {
+        NSLog(@"error %@", error);
+    }];
+    [operation start];
+    
+    return nil;
+}
+
 
 @end

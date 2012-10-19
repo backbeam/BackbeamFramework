@@ -60,14 +60,25 @@
             return;
         }
         
+        NSDictionary* references = [result objectForKey:@"references"];
+        NSMutableDictionary* refs = [[NSMutableDictionary alloc] initWithCapacity:references.count];
+        if (references) {
+            for (NSString* identifier in references) {
+                NSDictionary* object = [references objectForKey:identifier];
+                NSString* type = [object objectForKey:@"_type"];
+                BBObject* obj = [[BBObject alloc] initWithEntity:type dictionary:object references:nil identifier:identifier];
+                [refs setObject:obj forKey:identifier];
+            }
+        }
+        
         NSArray* objects = [result objectForKey:@"objects"];
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:objects.count];
         for (NSDictionary* dict in objects) {
-            BBObject* obj = [[BBObject alloc] initWithEntity:self._entity dictionary:dict];
+            BBObject* obj = [[BBObject alloc] initWithEntity:self._entity dictionary:dict references:refs identifier:nil];
             [arr addObject:obj];
         }
         
-        success(arr, nil);
+        success(arr);
     } failure:^(NSError* err) {
         NSLog(@"error %@", err);
         failure(err);

@@ -31,23 +31,44 @@
     return self;
 }
 
-- (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict
+- (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier
 {
     self = [super init];
     if (self) {
         self._entity = entity;
         self._fields = [[NSMutableDictionary alloc] init];
+        self._identifier = identifier;
         
         for (NSString* key in dict.allKeys) {
-            id value = [dict objectForKey:key];
-            if ([key isEqualToString:@"_id"]) {
-                self._identifier = value;
-            } else if ([key isEqualToString:@"_created_at"]) {
+            NSObject* value = [dict objectForKey:key];
+            if ([key isEqualToString:@"id"]) {
+                self._identifier = [value description];
+            } else if ([key isEqualToString:@"created_at"]) {
                 self._createdAt = [BBObject dateFromValue:value];
-            } else if ([key isEqualToString:@"_updated_at"]) {
+            } else if ([key isEqualToString:@"updated_at"]) {
                 self._updatedAt = [BBObject dateFromValue:value];
-            } else if (![key hasPrefix:@"_"]) {
-                [self._fields setObject:value forKey:key];
+            } else {
+                NSRange range = [key rangeOfString:@"#"];
+                if (range.location != NSNotFound) {
+                    NSString* _key = [key substringToIndex:range.location];
+                    NSString* type = [key substringFromIndex:range.location+1];
+                    if ([type isEqualToString:@"d"] && [value isKindOfClass:[NSNumber class]]) {
+                        NSNumber* n = (NSNumber*)value;
+                        value = [NSDate dateWithTimeIntervalSince1970:n.doubleValue/1000];
+                    } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSDictionary class]]) {
+                        NSDictionary* dict = (NSDictionary*)value;
+                        NSNumber* count = [dict objectForKey:@"count"];
+                        NSArray* arr = [dict objectForKey:@"result"];
+                        NSMutableArray* refs = [[NSMutableArray alloc] initWithCapacity:arr.count];
+                        for (NSString* identifier in arr) {
+                            [refs addObject:[references objectForKey:identifier]];
+                        }
+                        value = [NSDictionary dictionaryWithObjectsAndKeys:refs, @"result", count, @"count", nil];
+                    } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSString class]]) {
+                        value = [references objectForKey:value];
+                    }
+                    [self._fields setObject:value forKey:_key];
+                }
             }
         }
     }
@@ -185,5 +206,8 @@
     }];
 }
 
+- (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success {
+    return [[Backbeam instance] image:self._identifier withSize:size success:success];
+}
 
 @end

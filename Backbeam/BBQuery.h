@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
-typedef void(^SuccessQueryBlock)(NSArray* objects, NSDictionary* references);
+typedef void(^SuccessQueryBlock)(NSArray* objects);
 typedef void(^FailureQueryBlock)(NSError* err);
 
 @interface BBQuery : NSObject
