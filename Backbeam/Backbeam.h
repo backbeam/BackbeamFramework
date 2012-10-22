@@ -29,7 +29,12 @@
 + (void)persistDeviceToken:(NSData*)data;
 
 + (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure;
++ (void)subscribeToChannels:(NSArray*)channels;
+
 + (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure;
++ (void)unsubscribeFromChannels:(NSArray*)channels;
+
 + (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure;
++ (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel;
 
 @end

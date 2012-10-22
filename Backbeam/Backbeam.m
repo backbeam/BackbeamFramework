@@ -26,6 +26,7 @@
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
 
 @property (nonatomic, strong) NSString* deviceToken;
+@property (nonatomic, strong) NSString* basePath;
 
 @property (nonatomic, strong) NSCache* cache;
 
@@ -33,12 +34,22 @@
 
 @implementation Backbeam
 
+#define kDeviceTokenPathComponent @"deviceToken"
+
 - (id)init
 {
     self = [super init];
     if (self) {
         self.cache = [[NSCache alloc] init];
-        self.deviceToken = @"okfXIwSKS970yB4tQLUEk6Mdx/QnsK6Heggs17daFFU=";
+        NSString* path = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+        path = [path stringByAppendingPathComponent:@"Private Documents"];
+        path = [path stringByAppendingPathComponent:@"Backbeam"];
+        // TODO: handle error
+        [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
+        self.basePath = path;
+        path = [self.basePath stringByAppendingPathComponent:kDeviceTokenPathComponent];
+        // TODO: handle error
+        self.deviceToken = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
     }
     return self;
 }
@@ -108,11 +119,10 @@
         [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     }
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id JSON) {
-        
+        // TODO: check status
         success(JSON);
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id JSON) {
-        NSLog(@"failure %@", [err localizedDescription]);
-        
+        // TODO: translate exception
         failure(err);
     }];
     [operation start];
@@ -151,27 +161,30 @@
     return nil;
 }
 
-+ (void)persistDeviceToken:(NSData*)data {
+- (void)persistDeviceToken:(NSData*)data {
     NSString* base64 = [data base64EncodedString];
-    NSLog(@"base64 %@", base64);
+    NSString* path = [self.basePath stringByAppendingPathComponent:kDeviceTokenPathComponent];
+    // TODO: handle error
+    [base64 writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 
-- (void)setLoggedUser:(BBObject*)user {
-    // Library/Private Documents/Backbeam/user
-    NSString* path = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-    path = [path stringByAppendingPathComponent:@"Private Documents"];
-    path = [path stringByAppendingPathComponent:@"Backbeam"];
-    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
++ (void)persistDeviceToken:(NSData*)data {
+    [[Backbeam instance] persistDeviceToken:data];
 }
+
+//- (void)setLoggedUser:(BBObject*)user {
+//    NSString* path = [self.basePath stringByAppendingPathComponent:@"user"];
+//    // TODO
+//}
 
 - (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/subscribe" params:nil body:body success:^(id result) {
-        NSLog(@"subscribe success %@", result);
+        // TODO: check status
         success();
     } failure:^(NSError* err) {
-        NSLog(@"subscribe error %@", err);
+        // TODO: translate error
         failure(err);
     }];
 }
@@ -180,20 +193,28 @@
     [[Backbeam instance] subscribeToChannels:channels success:success failure:failure];
 }
 
++ (void)subscribeToChannels:(NSArray*)channels {
+    [[Backbeam instance] subscribeToChannels:channels success:^{} failure:^(NSError* err){}];
+}
+
 - (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/unsubscribe" params:nil body:body success:^(id result) {
-        NSLog(@"send push notification success %@", result);
+        // TODO: check status
         success();
     } failure:^(NSError* err) {
-        NSLog(@"send push notification error %@", err);
+        // TODO: translate error
         failure(err);
     }];
 }
 
 + (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
     [[Backbeam instance] unsubscribeFromChannels:channels success:success failure:failure];
+}
+
++ (void)unsubscribeFromChannels:(NSArray*)channels {
+    [[Backbeam instance] unsubscribeFromChannels:channels success:^{} failure:^(NSError* err){}];
 }
 
 - (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
@@ -205,16 +226,20 @@
     // TODO: apn_payload = notification.extra
     
     [self perform:@"POST" path:@"/push/send" params:nil body:body success:^(id result) {
-        NSLog(@"send push notification success %@", result);
+        // TODO: check status
         success();
     } failure:^(NSError* err) {
-        NSLog(@"send push notification error %@", err);
+        // TODO: translate error
         failure(err);
     }];
 }
 
 + (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
     [[Backbeam instance] sendPushNotification:notification toChannel:channel success:success failure:failure];
+}
+
++ (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel {
+    [[Backbeam instance] sendPushNotification:notification toChannel:channel success:^{} failure:^(NSError* err){}];
 }
 
 @end
