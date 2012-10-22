@@ -10,11 +10,9 @@
 #import "BBTwitterLoginViewController.h"
 #import "BBObject.h"
 #import "BBQuery.h"
+#import "Common.h"
 
-typedef void(^SuccessOperationBlock)(id result);
-typedef void(^FailureOperationBlock)(NSError* err);
-
-typedef void(^SuccessImageBlock)(UIImage* img);
+@class BBPushNotification;
 
 @interface Backbeam : NSObject
 
@@ -27,5 +25,11 @@ typedef void(^SuccessImageBlock)(UIImage* img);
 
 - (void)perform:(NSString*)httpMethod path:(NSString*)path params:(NSDictionary*)params body:(NSDictionary*)body success:(SuccessOperationBlock)success failure:(FailureOperationBlock)failure;
 - (UIImage*)image:(NSString*)identifier withSize:(CGSize)size success:(SuccessImageBlock)success;
+
++ (void)persistDeviceToken:(NSData*)data;
+
++ (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure;
++ (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure;
++ (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure;
 
 @end

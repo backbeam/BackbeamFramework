@@ -7,12 +7,9 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "Common.h"
 
 @class BBObject;
-typedef void(^SuccessObjectBlock)(BBObject* object);
-typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
-
-typedef void(^SuccessImageBlock)(UIImage* img);
 
 @interface BBObject : NSObject
 

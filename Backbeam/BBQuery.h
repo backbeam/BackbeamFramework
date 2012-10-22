@@ -7,9 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
-
-typedef void(^SuccessQueryBlock)(NSArray* objects);
-typedef void(^FailureQueryBlock)(NSError* err);
+#import "Common.h"
 
 @interface BBQuery : NSObject
 

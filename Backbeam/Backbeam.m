@@ -10,8 +10,8 @@
 #import "AFNetworking.h"
 #import "BBTwitterLoginViewController.h"
 #import "BBUtils.h"
-
-#define API_ENDPOINT @"http://127.0.0.1:8080/api/"
+#import "NSData+Base64.h"
+#import "BBPushNotification.h"
 
 @interface Backbeam ()
 
@@ -25,6 +25,8 @@
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
 
+@property (nonatomic, strong) NSString* deviceToken;
+
 @property (nonatomic, strong) NSCache* cache;
 
 @end
@@ -36,6 +38,7 @@
     self = [super init];
     if (self) {
         self.cache = [[NSCache alloc] init];
+        self.deviceToken = @"okfXIwSKS970yB4tQLUEk6Mdx/QnsK6Heggs17daFFU=";
     }
     return self;
 }
@@ -148,5 +151,70 @@
     return nil;
 }
 
++ (void)persistDeviceToken:(NSData*)data {
+    NSString* base64 = [data base64EncodedString];
+    NSLog(@"base64 %@", base64);
+}
+
+- (void)setLoggedUser:(BBObject*)user {
+    // Library/Private Documents/Backbeam/user
+    NSString* path = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    path = [path stringByAppendingPathComponent:@"Private Documents"];
+    path = [path stringByAppendingPathComponent:@"Backbeam"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
+}
+
+- (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
+    
+    [self perform:@"POST" path:@"/push/subscribe" params:nil body:body success:^(id result) {
+        NSLog(@"subscribe success %@", result);
+        success();
+    } failure:^(NSError* err) {
+        NSLog(@"subscribe error %@", err);
+        failure(err);
+    }];
+}
+
++ (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    [[Backbeam instance] subscribeToChannels:channels success:success failure:failure];
+}
+
+- (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
+    
+    [self perform:@"POST" path:@"/push/unsubscribe" params:nil body:body success:^(id result) {
+        NSLog(@"send push notification success %@", result);
+        success();
+    } failure:^(NSError* err) {
+        NSLog(@"send push notification error %@", err);
+        failure(err);
+    }];
+}
+
++ (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    [[Backbeam instance] unsubscribeFromChannels:channels success:success failure:failure];
+}
+
+- (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    NSMutableDictionary* body = [[NSMutableDictionary alloc] init];
+    [body setObject:channel forKey:@"channel"];
+    if (notification.badge) { [body setObject:[NSString stringWithFormat:@"%d", notification.badge.integerValue] forKey:@"apn_badge"]; }
+    if (notification.text ) { [body setObject:notification.text  forKey:@"apn_alert"]; }
+    if (notification.sound) { [body setObject:notification.sound forKey:@"apn_sound"]; }
+    // TODO: apn_payload = notification.extra
+    
+    [self perform:@"POST" path:@"/push/send" params:nil body:body success:^(id result) {
+        NSLog(@"send push notification success %@", result);
+        success();
+    } failure:^(NSError* err) {
+        NSLog(@"send push notification error %@", err);
+        failure(err);
+    }];
+}
+
++ (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    [[Backbeam instance] sendPushNotification:notification toChannel:channel success:success failure:failure];
+}
 
 @end
