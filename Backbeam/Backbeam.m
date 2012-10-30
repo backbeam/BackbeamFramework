@@ -19,6 +19,7 @@
 @property (nonatomic, assign) NSInteger port;
 
 @property (nonatomic, strong) NSString* project;
+@property (nonatomic, strong) NSString* env;
 @property (nonatomic, strong) NSString* sharedKey;
 @property (nonatomic, strong) NSString* secretKey;
 
@@ -61,6 +62,7 @@
             inst = [[self alloc] init];
             inst.host = @"backbam.io";
             inst.port = 80;
+            inst.env  = @"dev";
         }
     }
     return inst;
@@ -107,7 +109,7 @@
 
 - (void)perform:(NSString*)httpMethod path:(NSString*)path params:(NSDictionary*)params body:(NSDictionary*)body success:(SuccessOperationBlock)success failure:(FailureOperationBlock)failure {
 
-    NSString* url = [@"http://" stringByAppendingFormat:@"%@.%@:%d/api%@", self.project, self.host, self.port, path];
+    NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d%@", self.env, self.project, self.host, self.port, path];
     if (params) {
         url = [url stringByAppendingFormat:@"?%@", [BBUtils queryString:params]];
     }
@@ -134,8 +136,8 @@
     int width  = (int)(size.width *scale);
     int height = (int)(size.height*scale);
     
-    NSString* url = [@"http://" stringByAppendingFormat:@"%@.%@:%d/file/%@?width=%d&height=%d",
-                     self.project, self.host, self.port, identifier, width, height];
+    NSString* url = [@"http://" stringByAppendingFormat:@"%@.%@:%d/file/%@/%@?width=%d&height=%d",
+                     self.project, self.host, self.port, self.env, identifier, width, height];
     
     UIImage* img = [self.cache objectForKey:url];
     if (img) return img;
@@ -178,6 +180,7 @@
 //}
 
 - (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    // TODO: first check that deviceToken is defined
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/subscribe" params:nil body:body success:^(id result) {
@@ -198,6 +201,7 @@
 }
 
 - (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+    // TODO: first check that deviceToken is defined
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/unsubscribe" params:nil body:body success:^(id result) {
