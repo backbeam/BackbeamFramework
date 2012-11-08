@@ -43,7 +43,7 @@
 
 - (void)fetch:(NSInteger)limit offset:(NSInteger)offset success:(SuccessQueryBlock)success failure:(FailureQueryBlock)failure {
     
-    NSString* path = [NSString stringWithFormat:@"/%@", self._entity];
+    NSString* path = [NSString stringWithFormat:@"/data/%@", self._entity];
     NSMutableDictionary* params = [[NSMutableDictionary alloc] init];
     if (self._query) {
         [params setObject:self._query forKey:@"q"];

@@ -10,6 +10,7 @@
 #import "BBTwitterLoginViewController.h"
 #import "BBObject.h"
 #import "BBQuery.h"
+#import "BBUser.h"
 #import "Common.h"
 
 @class BBPushNotification;
@@ -17,7 +18,7 @@
 @interface Backbeam : NSObject
 
 + (void)setHost:(NSString*)host port:(NSInteger)port;
-+ (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey;
++ (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env;
 + (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret;
 + (BBTwitterLoginViewController*)twitterLoginViewController;
 

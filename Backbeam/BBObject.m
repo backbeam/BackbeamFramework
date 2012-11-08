@@ -151,7 +151,7 @@
 }
 
 - (void)insert:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    NSString* path = [NSString stringWithFormat:@"/%@", self._entity];
+    NSString* path = [NSString stringWithFormat:@"/data/%@", self._entity];
     
     [[Backbeam instance] perform:@"POST" path:path params:nil body:self._fields success:^(id result) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -159,7 +159,8 @@
             return;
         }
         // TODO: check status
-        self._identifier = [result objectForKey:@"id"];
+        NSDictionary* object = [result objectForKey:@"object"];
+        self._identifier = [object objectForKey:@"id"];
         NSLog(@"result %@", result);
         
         success(self);
@@ -171,7 +172,7 @@
 
 - (void)update:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
     // TODO: if not identifier
-    NSString* path = [NSString stringWithFormat:@"/%@/%@", self._entity, self._identifier];
+    NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
     NSLog(@"fields %@", self._fields);
     [[Backbeam instance] perform:@"PUT" path:path params:nil body:self._fields success:^(id result) {
@@ -190,7 +191,7 @@
 
 - (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
     // TODO: if not identifier
-    NSString* path = [NSString stringWithFormat:@"/%@/%@", self._entity, self._identifier];
+    NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
     [[Backbeam instance] perform:@"DELETE" path:path params:nil body:self._fields success:^(id result) {
         if (![result isKindOfClass:[NSDictionary class]]) {

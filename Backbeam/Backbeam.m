@@ -77,14 +77,15 @@
     [[Backbeam instance] setHost:host port:port];
 }
 
-- (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey {
+- (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
     self.project = project;
     self.sharedKey = sharedKey;
     self.secretKey = secretKey;
+    self.env = env;
 }
 
-+ (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey {
-    [[Backbeam instance] setProject:project sharedKey:sharedKey secretKey:secretKey];
++ (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
+    [[Backbeam instance] setProject:project sharedKey:sharedKey secretKey:secretKey environment:env];
 }
 
 - (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
@@ -113,6 +114,7 @@
     if (params) {
         url = [url stringByAppendingFormat:@"?%@", [BBUtils queryString:params]];
     }
+    NSLog(@"url %@", url);
     NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
     [req setHTTPMethod:httpMethod];
     if (body) {
@@ -122,6 +124,7 @@
     }
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id JSON) {
         // TODO: check status
+        NSLog(@"result %@", JSON);
         success(JSON);
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id JSON) {
         // TODO: translate exception

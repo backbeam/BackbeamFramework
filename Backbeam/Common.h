@@ -7,6 +7,7 @@
 //
 
 @class BBObject;
+@class BBUser;
 
 typedef void(^SuccessBlock)();
 typedef void(^SuccessOperationBlock)(id result);
@@ -19,3 +20,6 @@ typedef void(^FailureQueryBlock)(NSError* err);
 
 typedef void(^SuccessObjectBlock)(BBObject* object);
 typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
+
+typedef void(^SuccessUserBlock)(BBUser* user);
+typedef void(^FailureUserBlock)(BBUser* user, NSError* err);
