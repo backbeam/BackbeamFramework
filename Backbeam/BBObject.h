@@ -14,6 +14,7 @@
 @interface BBObject : NSObject
 
 - (id)initWithEntity:(NSString*)entity;
+- (id)initWithEntity:(NSString*)entity andIdentifier:(NSString*)identifier;
 - (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier;
 
 - (NSString*)identifier;
@@ -32,9 +33,9 @@
 
 - (void)increment:(NSString*)key by:(NSInteger)value;
 
-- (void)insert:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
-- (void)update:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
-- (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+- (BOOL)save:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+- (BOOL)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+- (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
 
 - (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success;
 

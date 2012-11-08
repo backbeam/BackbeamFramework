@@ -8,12 +8,14 @@
 
 #import "BBObject.h"
 #import "Backbeam.h"
+#import "BBError.h"
 
 @interface BBObject ()
 
 @property (nonatomic, strong) NSString* _identifier;
 @property (nonatomic, strong) NSString* _entity;
 @property (nonatomic, strong) NSMutableDictionary* _fields;
+@property (nonatomic, strong) NSMutableDictionary* _commands;
 @property (nonatomic, strong) NSDate* _createdAt;
 @property (nonatomic, strong) NSDate* _updatedAt;
 
@@ -27,6 +29,19 @@
     if (self) {
         self._entity = entity;
         self._fields = [[NSMutableDictionary alloc] init];
+        self._commands = [[NSMutableDictionary alloc] init];
+    }
+    return self;
+}
+
+- (id)initWithEntity:(NSString*)entity andIdentifier:(NSString*)identifier
+{
+    self = [super init];
+    if (self) {
+        self._entity = entity;
+        self._identifier = identifier;
+        self._fields = [[NSMutableDictionary alloc] init];
+        self._commands = [[NSMutableDictionary alloc] init];
     }
     return self;
 }
@@ -37,42 +52,51 @@
     if (self) {
         self._entity = entity;
         self._fields = [[NSMutableDictionary alloc] init];
+        self._commands = [[NSMutableDictionary alloc] init];
         self._identifier = identifier;
-        
-        for (NSString* key in dict.allKeys) {
-            NSObject* value = [dict objectForKey:key];
-            if ([key isEqualToString:@"id"]) {
-                self._identifier = [value description];
-            } else if ([key isEqualToString:@"created_at"]) {
-                self._createdAt = [BBObject dateFromValue:value];
-            } else if ([key isEqualToString:@"updated_at"]) {
-                self._updatedAt = [BBObject dateFromValue:value];
-            } else {
-                NSRange range = [key rangeOfString:@"#"];
-                if (range.location != NSNotFound) {
-                    NSString* _key = [key substringToIndex:range.location];
-                    NSString* type = [key substringFromIndex:range.location+1];
-                    if ([type isEqualToString:@"d"] && [value isKindOfClass:[NSNumber class]]) {
-                        NSNumber* n = (NSNumber*)value;
-                        value = [NSDate dateWithTimeIntervalSince1970:n.doubleValue/1000];
-                    } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSDictionary class]]) {
-                        NSDictionary* dict = (NSDictionary*)value;
-                        NSNumber* count = [dict objectForKey:@"count"];
-                        NSArray* arr = [dict objectForKey:@"result"];
-                        NSMutableArray* refs = [[NSMutableArray alloc] initWithCapacity:arr.count];
-                        for (NSString* identifier in arr) {
-                            [refs addObject:[references objectForKey:identifier]];
+        [self fillValuesWithDictionary:dict andReferences:references];
+    }
+    return self;
+}
+
+- (void)fillValuesWithDictionary:(NSDictionary*)dict andReferences:(NSDictionary*)references {
+    for (NSString* key in dict.allKeys) {
+        NSObject* value = [dict objectForKey:key];
+        if ([key isEqualToString:@"id"]) {
+            self._identifier = [value description];
+        } else if ([key isEqualToString:@"created_at"]) {
+            self._createdAt = [BBObject dateFromValue:value];
+        } else if ([key isEqualToString:@"updated_at"]) {
+            self._updatedAt = [BBObject dateFromValue:value];
+        } else {
+            NSRange range = [key rangeOfString:@"#"];
+            if (range.location != NSNotFound) {
+                NSString* _key = [key substringToIndex:range.location];
+                NSString* type = [key substringFromIndex:range.location+1];
+                if ([type isEqualToString:@"d"] && [value isKindOfClass:[NSNumber class]]) {
+                    NSNumber* n = (NSNumber*)value;
+                    value = [NSDate dateWithTimeIntervalSince1970:n.doubleValue/1000];
+                } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary* dict = (NSDictionary*)value;
+                    NSNumber* count = [dict objectForKey:@"count"];
+                    NSArray* arr = [dict objectForKey:@"result"];
+                    NSMutableArray* refs = [[NSMutableArray alloc] initWithCapacity:arr.count];
+                    for (NSString* identifier in arr) {
+                        NSDictionary* obj = [references objectForKey:identifier];
+                        if (obj) { // sanity check
+                            [refs addObject:obj];
                         }
-                        value = [NSDictionary dictionaryWithObjectsAndKeys:refs, @"result", count, @"count", nil];
-                    } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSString class]]) {
-                        value = [references objectForKey:value];
                     }
+                    value = [NSDictionary dictionaryWithObjectsAndKeys:refs, @"result", count, @"count", nil];
+                } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSString class]]) {
+                    value = [references objectForKey:value];
+                }
+                if (value) { // sanity check
                     [self._fields setObject:value forKey:_key];
                 }
             }
         }
     }
-    return self;
 }
 
 + (NSDate*)dateFromValue:(id)value {
@@ -130,6 +154,7 @@
 
 - (void)setObject:(id)obj forKey:(NSString*)key {
     [self._fields setObject:obj forKey:key];
+    [self._commands setObject:obj forKey:key];
 }
 
 - (id)objectForKey:(NSString*)key {
@@ -137,10 +162,12 @@
 }
 
 - (void)removeObjectForKey:(NSString*)key {
-    
+    [self._fields removeObjectForKey:key];
+    [self._commands setObject:[NSNull null] forKey:key];
 }
 
 - (void)increment:(NSString*)key by:(NSInteger)value {
+    // TODO: send command _incr-
     NSNumber* n = [self numberForKey:key];
     if (n) {
         n = [NSNumber numberWithInteger:n.integerValue+value];
@@ -150,61 +177,77 @@
     [self._fields setObject:n forKey:key];
 }
 
-- (void)insert:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    NSString* path = [NSString stringWithFormat:@"/data/%@", self._entity];
+- (void)processResponse:(id)result success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (![result isKindOfClass:[NSDictionary class]]) {
+        failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        return;
+    }
     
-    [[Backbeam instance] perform:@"POST" path:path params:nil body:self._fields success:^(id result) {
-        if (![result isKindOfClass:[NSDictionary class]]) {
-            failure(self, [NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
-            return;
-        }
-        // TODO: check status
-        NSDictionary* object = [result objectForKey:@"object"];
-        self._identifier = [object objectForKey:@"id"];
-        NSLog(@"result %@", result);
-        
-        success(self);
-    } failure:^(NSError* err) {
-        NSLog(@"error %@", err);
-        failure(self, err);
-    }];
+    NSString* status     = [result objectForKey:@"status"];
+    NSDictionary* object = [result objectForKey:@"object"];
+    
+    if (!status || !object) {
+        failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        return;
+    }
+    
+    if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
+        failure(self, [BBError errorWithStatus:status result:result]);
+        return;
+    }
+    
+    [self fillValuesWithDictionary:object andReferences:nil];
+    success(self);
 }
 
-- (void)update:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    // TODO: if not identifier
-    NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
-    
-    NSLog(@"fields %@", self._fields);
-    [[Backbeam instance] perform:@"PUT" path:path params:nil body:self._fields success:^(id result) {
-        if (![result isKindOfClass:[NSDictionary class]]) {
-            failure(self, [NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
-            return;
-        }
-        NSLog(@"result %@", result);
-        
-        success(self);
-    } failure:^(NSError* err) {
-        NSLog(@"error %@", err);
-        failure(self, err);
-    }];
+- (void)processResponse:(NSError*)err failure:(FailureObjectBlock)failure {
+    failure(self, [BBError errorWithError:err]);
 }
 
-- (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    // TODO: if not identifier
+- (BOOL)save:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (!self._entity) { return NO; }
+    
+    NSString* path = nil;
+    NSString* method = nil;
+    if (self._identifier) {
+        method = @"PUT";
+        path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
+    } else {
+        method = @"POST";
+        path = [NSString stringWithFormat:@"/data/%@", self._entity];
+    }
+    
+    [[Backbeam instance] perform:method path:path params:nil body:self._commands success:^(id result) {
+        [self._commands removeAllObjects];
+        [self processResponse:result success:success failure:failure];
+    } failure:^(NSError* err) {
+        [self processResponse:err failure:failure];
+    }];
+    return YES;
+}
+
+- (BOOL)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
-    [[Backbeam instance] perform:@"DELETE" path:path params:nil body:self._fields success:^(id result) {
-        if (![result isKindOfClass:[NSDictionary class]]) {
-            failure(self, [NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
-            return;
-        }
-        NSLog(@"result %@", result);
-        
-        success(self);
+    [[Backbeam instance] perform:@"DELETE" path:path params:nil body:nil success:^(id result) {
+        [self processResponse:result success:success failure:failure];
     } failure:^(NSError* err) {
-        NSLog(@"error %@", err);
-        failure(self, err);
+        [self processResponse:err failure:failure];
     }];
+    return YES;
+}
+
+- (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (!self._entity || !self._identifier) { return NO; }
+    NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
+    
+    [[Backbeam instance] perform:@"GET" path:path params:nil body:nil success:^(id result) {
+        [self processResponse:result success:success failure:failure];
+    } failure:^(NSError* err) {
+        [self processResponse:err failure:failure];
+    }];
+    return YES;
 }
 
 - (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success {

@@ -114,7 +114,7 @@
     if (params) {
         url = [url stringByAppendingFormat:@"?%@", [BBUtils queryString:params]];
     }
-    NSLog(@"url %@", url);
+    NSLog(@"%@ %@", httpMethod, url);
     NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
     [req setHTTPMethod:httpMethod];
     if (body) {
@@ -123,11 +123,8 @@
         [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     }
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id JSON) {
-        // TODO: check status
-        NSLog(@"result %@", JSON);
         success(JSON);
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id JSON) {
-        // TODO: translate exception
         failure(err);
     }];
     [operation start];
