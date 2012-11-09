@@ -1,6 +1,6 @@
 //
 //  NSDictionary+SanityChecks.h
-//  Callezeta
+//  Backbeam
 //
 //  Created by Alberto Gimeno Brieba on 09/11/12.
 //  Copyright (c) 2012 Level Apps S.L. All rights reserved.

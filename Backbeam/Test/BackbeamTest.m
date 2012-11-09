@@ -1,6 +1,6 @@
 //
 //  BackbeamTest.m
-//  Callezeta
+//  Backbeam
 //
 //  Created by Alberto Gimeno Brieba on 08/11/12.
 //  Copyright (c) 2012 Level Apps S.L. All rights reserved.
@@ -113,7 +113,7 @@
             [Backbeam unsubscribeFromChannels:[NSArray arrayWithObjects:@"foo", nil] success:^{
                 BBPushNotification* notification = [[BBPushNotification alloc] init];
                 notification.text = @"Hello world!";
-                notification.sound = @"defualt";
+                notification.sound = @"default";
                 [Backbeam sendPushNotification:notification toChannel:@"bar" success:^{
                     done();
                 } failure:^(NSError* error) {

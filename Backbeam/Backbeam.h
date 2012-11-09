@@ -1,6 +1,6 @@
 //
 //  Backbeam.h
-//  Callezeta
+//  Backbeam
 //
 //  Created by Alberto Gimeno Brieba on 16/08/12.
 //  Copyright (c) 2012 Level Apps S.L. All rights reserved.
