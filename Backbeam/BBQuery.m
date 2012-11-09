@@ -7,7 +7,7 @@
 //
 
 #import "BBQuery.h"
-#import "Backbeam.h"
+#import "BBError.h"
 
 @interface BBQuery ()
 
@@ -15,16 +15,21 @@
 @property (nonatomic, strong) NSString* _entity;
 @property (nonatomic, strong) NSString* _query;
 @property (nonatomic, strong) NSMutableArray* _parameters;
+@property (nonatomic, strong) BackbeamSession* _session;
 
 @end
 
 @implementation BBQuery
 
-+ (BBQuery*)queryForEntity:(NSString*)entity {
-    BBQuery* query = [[BBQuery alloc] init];
-    query._parameters = [[NSMutableArray alloc] init];
-    query._entity = entity;
-    return query;
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity
+{
+    self = [super init];
+    if (self) {
+        self._session = session;
+        self._entity = entity;
+        self._parameters = [[NSMutableArray alloc] init];
+    }
+    return self;
 }
 
 - (void)setQuery:(NSString*)query withParams:(NSArray*)params {
@@ -54,7 +59,7 @@
     [params setObject:[NSString stringWithFormat:@"%d", limit]  forKey:@"limit"];
     [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
     
-    [[Backbeam instance] perform:@"GET" path:path params:params body:nil success:^(id result) {
+    [self._session perform:@"GET" path:path params:params body:nil success:^(id result) {
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
             return;
@@ -66,7 +71,7 @@
             for (NSString* identifier in references) {
                 NSDictionary* object = [references objectForKey:identifier];
                 NSString* type = [object objectForKey:@"_type"];
-                BBObject* obj = [[BBObject alloc] initWithEntity:type dictionary:object references:nil identifier:identifier];
+                BBObject* obj = [[BBObject alloc] initWith:self._session entity:type dictionary:object references:nil identifier:identifier];
                 [refs setObject:obj forKey:identifier];
             }
         }
@@ -74,16 +79,25 @@
         NSArray* objects = [result objectForKey:@"objects"];
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:objects.count];
         for (NSDictionary* dict in objects) {
-            BBObject* obj = [[BBObject alloc] initWithEntity:self._entity dictionary:dict references:refs identifier:nil];
+            BBObject* obj = [[BBObject alloc] initWith:self._session entity:self._entity dictionary:dict references:refs identifier:nil];
             [arr addObject:obj];
         }
         
         success(arr);
-    } failure:^(NSError* err) {
-        NSLog(@"error %@", err);
-        failure(err);
+    } failure:^(id result, NSError* error) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        NSString* status = [result stringForKey:@"status"];
+        if (![status isEqualToString:@"Success"]) {
+            failure([BBError errorWithStatus:status result:result]);
+            return;
+        }
+        
+        failure([BBError errorWithError:error]);
     }];
-    
 }
 
 - (void)next:(NSInteger)limit {

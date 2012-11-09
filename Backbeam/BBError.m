@@ -21,6 +21,24 @@
     return err;
 }
 
++ (BBError*)errorWithResult:(id)result error:(NSError*)error {
+    if (![result isKindOfClass:[NSDictionary class]]) {
+        return [BBError errorWithError:error];
+    }
+    
+    NSString* status = [result stringForKey:@"status"];
+    if (!status) {
+        return [BBError errorWithError:error];
+    }
+    
+    NSMutableDictionary* userInfo = [[NSMutableDictionary alloc] initWithObjectsAndKeys:status, @"status", nil];
+    if (result) {
+        [userInfo setObject:result forKey:@"result"];
+    }
+    BBError* err = [[BBError alloc] initWithDomain:kBackbeamErrorDomain code:1000 userInfo:userInfo];
+    return err;
+}
+
 + (BBError*)errorWithError:(NSError*)error {
     NSDictionary* userInfo = nil;
     if (error) {

@@ -12,5 +12,6 @@
 
 + (BBError*)errorWithStatus:(NSString*)status result:(id)result;
 + (BBError*)errorWithError:(NSError*)error;
++ (BBError*)errorWithResult:(id)result error:(NSError*)error;
 
 @end

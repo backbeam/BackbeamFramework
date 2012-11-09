@@ -23,6 +23,7 @@
 @property (nonatomic, strong) NSString* oauthTokenSecret;
 @property (nonatomic, copy) SuccessTwitterBlock success;
 @property (nonatomic, copy) FailureTwitterBlock failure;
+@property (nonatomic, strong) BackbeamSession* _session;
 
 @end
 
@@ -30,11 +31,11 @@
 
 @synthesize webview;
 
-- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
+- (id)initWith:(BackbeamSession*)session
 {
-    self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
+    self = [super init];
     if (self) {
-        // Custom initialization
+        self._session = session;
     }
     return self;
 }
@@ -184,15 +185,16 @@
                     
                     NSDictionary* postParams = [NSDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
                                                 oauthTokenSecret, @"oauth_token_secret", nil];
-                    [[Backbeam instance] perform:@"POST" path:@"/user/twitter/signup" params:nil body:postParams success:^(id result) {
+                    [self._session perform:@"POST" path:@"/user/twitter/signup" params:nil body:postParams success:^(id result) {
                         NSDictionary* dict = result;
-                        BBObject* obj = [[BBObject alloc] initWithEntity:@"user" dictionary:dict references:nil identifier:nil];
+                        BBObject* obj = [[BBObject alloc] initWith:self._session entity:@"user" dictionary:dict references:nil identifier:nil];
                         NSDictionary* extraInfo = [NSDictionary dictionaryWithObjectsAndKeys:userId, @"twitter_user_id",
                                                    screenName, @"twitter_screen_name",
                                                    oauthToken, @"oauth_token",
                                                    oauthTokenSecret, @"oauth_token_secret", nil];
                         self.success(obj, extraInfo);
-                    } failure:^(NSError* err) {
+                    } failure:^(id result, NSError* err) {
+                        // TODO: check result
                         self.failure(err);
                     }];
                     

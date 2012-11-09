@@ -30,7 +30,7 @@
     if (self) {
         self.tests = [[NSMutableArray alloc] init];
         self.testNames = [[NSMutableArray alloc] init];
-        self._empty = ^(BBTest* test, DoneBlock done) {
+        self._empty = ^(DoneBlock done) {
             done();
         };
         self._before = self._empty;
@@ -65,19 +65,19 @@
 - (void)run:(DoneBlock)done {
     self.i = 0;
     self._finish = done;
-    self._before(self, ^{
+    self._before(^{
         [self runNext];
     });
 }
 
 - (void)runNext {
     if (self.i < self.tests.count) {
-        self._beforeEach(self, ^{
+        self._beforeEach(^{
+            NSLog(@"Running: %@", [self.testNames objectAtIndex:self.i]);
             TestBlock test = (TestBlock) [self.tests objectAtIndex:self.i];
-            test(self, ^{
-                self._afterEach(self, ^{
-                    NSLog(@"Running: %@", [self.testNames objectAtIndex:self.i]);
-                    self.i++;
+            test(^{
+                self.i++;
+                self._afterEach(^{
                     [self runNext];
                 });
             });
@@ -91,6 +91,10 @@
     NSString* file = [NSString stringWithFormat:@"%s", filename];
     NSArray* arr = [file componentsSeparatedByString:@"/"];
     NSLog(@"Test failed: %@ at %@ line %d", message, [arr lastObject], line);
+}
+
+- (void)configure {
+    
 }
 
 @end

@@ -8,12 +8,23 @@
 
 #import <Foundation/Foundation.h>
 #import "Common.h"
+#import "Backbeam.h"
+
+@class BackbeamSession;
 
 @interface BBQuery : NSObject
 
-+ (BBQuery*)queryForEntity:(NSString*)entity;
-- (void)setQuery:(NSString*)query withParams:(NSArray*)params;
-- (void)fetch:(NSInteger)limit offset:(NSInteger)offset success:(SuccessQueryBlock)success failure:(FailureQueryBlock)failure;
+- (id)initWith:(BackbeamSession*)session
+        entity:(NSString*)entity;
+
+- (void)setQuery:(NSString*)query
+      withParams:(NSArray*)params;
+
+- (void)fetch:(NSInteger)limit
+       offset:(NSInteger)offset
+      success:(SuccessQueryBlock)success
+      failure:(FailureQueryBlock)failure;
+
 - (void)next:(NSInteger)limit;
 
 @end

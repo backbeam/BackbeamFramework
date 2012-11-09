@@ -7,7 +7,6 @@
 //
 
 #import "BBObject.h"
-#import "Backbeam.h"
 #import "BBError.h"
 
 @interface BBObject ()
@@ -18,23 +17,25 @@
 @property (nonatomic, strong) NSMutableDictionary* _commands;
 @property (nonatomic, strong) NSDate* _createdAt;
 @property (nonatomic, strong) NSDate* _updatedAt;
+@property (nonatomic, strong) BackbeamSession* _session;
 
 @end
 
 @implementation BBObject
 
-- (id)initWithEntity:(NSString*)entity
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity
 {
     self = [super init];
     if (self) {
         self._entity = entity;
         self._fields = [[NSMutableDictionary alloc] init];
         self._commands = [[NSMutableDictionary alloc] init];
+        self._session = session;
     }
     return self;
 }
 
-- (id)initWithEntity:(NSString*)entity andIdentifier:(NSString*)identifier
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity andIdentifier:(NSString*)identifier
 {
     self = [super init];
     if (self) {
@@ -42,11 +43,12 @@
         self._identifier = identifier;
         self._fields = [[NSMutableDictionary alloc] init];
         self._commands = [[NSMutableDictionary alloc] init];
+        self._session = session;
     }
     return self;
 }
 
-- (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier
 {
     self = [super init];
     if (self) {
@@ -54,6 +56,7 @@
         self._fields = [[NSMutableDictionary alloc] init];
         self._commands = [[NSMutableDictionary alloc] init];
         self._identifier = identifier;
+        self._session = session;
         [self fillValuesWithDictionary:dict andReferences:references];
     }
     return self;
@@ -177,14 +180,14 @@
     [self._fields setObject:n forKey:key];
 }
 
-- (void)processResponse:(id)result success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+- (void)processResponse:(id)result success:(SuccessOperationObjectBlock)success failure:(FailureObjectBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
         failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
         return;
     }
     
-    NSString* status     = [result objectForKey:@"status"];
-    NSDictionary* object = [result objectForKey:@"object"];
+    NSString* status     = [result stringForKey:@"status"];
+    NSDictionary* object = [result dictionaryForKey:@"object"];
     
     if (!status || !object) {
         failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
@@ -197,10 +200,21 @@
     }
     
     [self fillValuesWithDictionary:object andReferences:nil];
-    success(self);
+    success(status, self);
 }
 
-- (void)processResponse:(NSError*)err failure:(FailureObjectBlock)failure {
+- (void)processResponse:(id)result error:(NSError*)err failure:(FailureObjectBlock)failure {
+    if (![result isKindOfClass:[NSDictionary class]]) {
+        failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        return;
+    }
+    
+    NSString* status = [result stringForKey:@"status"];
+    if (status) {
+        failure(self, [BBError errorWithStatus:status result:result]);
+        return;
+    }
+    
     failure(self, [BBError errorWithError:err]);
 }
 
@@ -217,11 +231,26 @@
         path = [NSString stringWithFormat:@"/data/%@", self._entity];
     }
     
-    [[Backbeam instance] perform:method path:path params:nil body:self._commands success:^(id result) {
+    [self._session perform:method path:path params:nil body:self._commands success:^(id result) {
         [self._commands removeAllObjects];
-        [self processResponse:result success:success failure:failure];
-    } failure:^(NSError* err) {
-        [self processResponse:err failure:failure];
+        [self processResponse:result success:^(NSString* status, BBObject* object) {
+            if ([self.entity isEqualToString:@"user"]) {
+                [self._fields removeObjectForKey:@"password"];
+            }
+            if ([self.entity isEqualToString:@"user"] && [method isEqualToString:@"POST"]) {
+                [Backbeam logout]; // logout previous user
+                if ([status isEqualToString:@"Success"]) { // not PendingValidation
+                    // TODO: set current user
+                    NSLog(@"set current user!");
+                    [self._session setLoggedUser:self];
+                }
+                success(object);
+            } else {
+                success(object);
+            }
+        } failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processResponse:result error:err failure:failure];
     }];
     return YES;
 }
@@ -230,10 +259,13 @@
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
-    [[Backbeam instance] perform:@"DELETE" path:path params:nil body:nil success:^(id result) {
-        [self processResponse:result success:success failure:failure];
-    } failure:^(NSError* err) {
-        [self processResponse:err failure:failure];
+    [self._session perform:@"DELETE" path:path params:nil body:nil success:^(id result) {
+        [self processResponse:result success:^(NSString* status, BBObject* object) {
+            // TODO: if (is current user) logout; return;
+            success(self);
+        } failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processResponse:result error:err failure:failure];
     }];
     return YES;
 }
@@ -242,16 +274,18 @@
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
-    [[Backbeam instance] perform:@"GET" path:path params:nil body:nil success:^(id result) {
-        [self processResponse:result success:success failure:failure];
-    } failure:^(NSError* err) {
-        [self processResponse:err failure:failure];
+    [self._session perform:@"GET" path:path params:nil body:nil success:^(id result) {
+        [self processResponse:result success:^(NSString* status, BBObject* object) {
+            success(object);
+        } failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processResponse:result error:err failure:failure];
     }];
     return YES;
 }
 
 - (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success {
-    return [[Backbeam instance] image:self._identifier withSize:size success:success];
+    return [self._session image:self._identifier withSize:size success:success];
 }
 
 @end

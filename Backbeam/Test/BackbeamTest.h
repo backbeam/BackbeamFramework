@@ -7,9 +7,8 @@
 //
 
 #import "BBObject.h"
+#import "BBTest.h"
 
-@interface BackbeamTest : BBObject
-
-- (void)doSomething;
+@interface BackbeamTest : BBTest
 
 @end

@@ -8,14 +8,17 @@
 
 #import <Foundation/Foundation.h>
 #import "Common.h"
+#import "Backbeam.h"
 
 @class BBObject;
+@class BackbeamSession;
 
 @interface BBObject : NSObject
 
-- (id)initWithEntity:(NSString*)entity;
-- (id)initWithEntity:(NSString*)entity andIdentifier:(NSString*)identifier;
-- (id)initWithEntity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier;
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity;
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity;
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity andIdentifier:(NSString*)identifier;
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier;
 
 - (NSString*)identifier;
 - (NSString*)entity;

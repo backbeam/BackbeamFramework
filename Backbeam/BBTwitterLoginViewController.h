@@ -9,6 +9,8 @@
 #import <UIKit/UIKit.h>
 #import "BBObject.h"
 
+@class BackbeamSession;
+
 typedef void(^SuccessTwitterBlock)(BBObject* user, NSDictionary* extraInfo);
 typedef void(^FailureTwitterBlock)(NSError* err);
 
@@ -18,6 +20,9 @@ typedef void(^FailureTwitterBlock)(NSError* err);
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
 
-- (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure;
+- (id)initWith:(BackbeamSession*)session;
+
+- (void)signup:(SuccessTwitterBlock)success
+       failure:(FailureTwitterBlock)failure;
 
 @end

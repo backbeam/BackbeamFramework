@@ -12,8 +12,10 @@
 #import "BBUtils.h"
 #import "NSData+Base64.h"
 #import "BBPushNotification.h"
+#import "BBError.h"
+#import "BBQuery.h"
 
-@interface Backbeam ()
+@interface BackbeamSession ()
 
 @property (nonatomic, strong) NSString* host;
 @property (nonatomic, assign) NSInteger port;
@@ -30,14 +32,23 @@
 @property (nonatomic, strong) NSString* basePath;
 
 @property (nonatomic, strong) NSCache* cache;
+@property (nonatomic, strong) BBObject* _loggedUser;
 
 @end
 
-@implementation Backbeam
+@interface Backbeam ()
+
+@end
+
+@implementation BackbeamSession
 
 #define kDeviceTokenPathComponent @"deviceToken"
 
-- (id)init
+- (id)init {
+    return nil;
+}
+
+- (id)initInstance
 {
     self = [super init];
     if (self) {
@@ -55,26 +66,9 @@
     return self;
 }
 
-+ (Backbeam*)instance {
-    static Backbeam *inst = nil;
-    @synchronized(self){
-        if (!inst) {
-            inst = [[self alloc] init];
-            inst.host = @"backbam.io";
-            inst.port = 80;
-            inst.env  = @"dev";
-        }
-    }
-    return inst;
-}
-
 - (void)setHost:(NSString*)host port:(NSInteger)port {
     self.host = host;
     self.port = port;
-}
-
-+ (void)setHost:(NSString*)host port:(NSInteger)port {
-    [[Backbeam instance] setHost:host port:port];
 }
 
 - (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
@@ -84,37 +78,25 @@
     self.env = env;
 }
 
-+ (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
-    [[Backbeam instance] setProject:project sharedKey:sharedKey secretKey:secretKey environment:env];
-}
-
 - (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
     self.twitterConsumerKey = twitterConsumerKey;
     self.twitterConsumerSecret = twitterConsumerSecret;
 }
 
-+ (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
-    [[Backbeam instance] setTwitterConsumerKey:twitterConsumerKey consumerSecret:twitterConsumerSecret];
-}
-
 - (BBTwitterLoginViewController*)twitterLoginViewController {
-    BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] init];
+    BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] initWith:self];
     vc.twitterConsumerKey = self.twitterConsumerKey;
     vc.twitterConsumerSecret = self.twitterConsumerSecret;
     return vc;
 }
 
-+ (BBTwitterLoginViewController*)twitterLoginViewController {
-    return [[Backbeam instance] twitterLoginViewController];
-}
-
 - (void)perform:(NSString*)httpMethod path:(NSString*)path params:(NSDictionary*)params body:(NSDictionary*)body success:(SuccessOperationBlock)success failure:(FailureOperationBlock)failure {
-
+    
     NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d%@", self.env, self.project, self.host, self.port, path];
     if (params) {
         url = [url stringByAppendingFormat:@"?%@", [BBUtils queryString:params]];
     }
-    NSLog(@"%@ %@", httpMethod, url);
+    // NSLog(@"%@ %@", httpMethod, url);
     NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
     [req setHTTPMethod:httpMethod];
     if (body) {
@@ -122,10 +104,10 @@
         [req setHTTPBody:[bodyString dataUsingEncoding:NSUTF8StringEncoding]];
         [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     }
-    AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id JSON) {
-        success(JSON);
-    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id JSON) {
-        failure(err);
+    AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
+        success(result);
+    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
+        failure(result, err);
     }];
     [operation start];
 }
@@ -156,6 +138,7 @@
             // TODO error with unexpected response
         }
     } failure:^(AFHTTPRequestOperation* operation, NSError* error) {
+        // TODO
         NSLog(@"error %@", error);
     }];
     [operation start];
@@ -170,58 +153,61 @@
     [base64 writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 
-+ (void)persistDeviceToken:(NSData*)data {
-    [[Backbeam instance] persistDeviceToken:data];
-}
-
-//- (void)setLoggedUser:(BBObject*)user {
-//    NSString* path = [self.basePath stringByAppendingPathComponent:@"user"];
-//    // TODO
-//}
-
-- (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
-    // TODO: first check that deviceToken is defined
+- (BOOL)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    if (!self.deviceToken) { return NO; }
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/subscribe" params:nil body:body success:^(id result) {
-        // TODO: check status
-        success();
-    } failure:^(NSError* err) {
-        // TODO: translate error
-        failure(err);
+        [self processBasicResponse:result success:success failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processBasicFailure:result error:err failure:failure];
     }];
+    return YES;
 }
 
-+ (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
-    [[Backbeam instance] subscribeToChannels:channels success:success failure:failure];
-}
-
-+ (void)subscribeToChannels:(NSArray*)channels {
-    [[Backbeam instance] subscribeToChannels:channels success:^{} failure:^(NSError* err){}];
-}
-
-- (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
-    // TODO: first check that deviceToken is defined
+- (BOOL)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    if (!self.deviceToken) return NO;
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/unsubscribe" params:nil body:body success:^(id result) {
-        // TODO: check status
-        success();
-    } failure:^(NSError* err) {
-        // TODO: translate error
-        failure(err);
+        [self processBasicResponse:result success:success failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processBasicFailure:result error:err failure:failure];
     }];
+    return YES;
 }
 
-+ (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
-    [[Backbeam instance] unsubscribeFromChannels:channels success:success failure:failure];
+- (void)processBasicResponse:(id)result success:(SuccessBlock)success failure:(FailureBlock)failure {
+    if (![result isKindOfClass:[NSDictionary class]]) {
+        failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        return;
+    }
+    
+    NSString* status = [result stringForKey:@"status"];
+    if (status) {
+        failure([BBError errorWithStatus:status result:result]);
+        return;
+    }
+    
+    success();
 }
 
-+ (void)unsubscribeFromChannels:(NSArray*)channels {
-    [[Backbeam instance] unsubscribeFromChannels:channels success:^{} failure:^(NSError* err){}];
+- (void)processBasicFailure:(id)result error:(NSError*)error failure:(FailureBlock)failure {
+    if (![result isKindOfClass:[NSDictionary class]]) {
+        failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        return;
+    }
+    
+    NSString* status = [result stringForKey:@"status"];
+    if (![status isEqualToString:@"Success"]) {
+        failure([BBError errorWithStatus:status result:result]);
+        return;
+    }
+    
+    failure([BBError errorWithError:error]);
 }
 
-- (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
+- (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureBlock)failure {
     NSMutableDictionary* body = [[NSMutableDictionary alloc] init];
     [body setObject:channel forKey:@"channel"];
     if (notification.badge) { [body setObject:[NSString stringWithFormat:@"%d", notification.badge.integerValue] forKey:@"apn_badge"]; }
@@ -230,20 +216,188 @@
     // TODO: apn_payload = notification.extra
     
     [self perform:@"POST" path:@"/push/send" params:nil body:body success:^(id result) {
-        // TODO: check status
-        success();
-    } failure:^(NSError* err) {
-        // TODO: translate error
-        failure(err);
+        [self processBasicResponse:result success:success failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processBasicFailure:result error:err failure:failure];
     }];
 }
 
-+ (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureOperationBlock)failure {
-    [[Backbeam instance] sendPushNotification:notification toChannel:channel success:success failure:failure];
+- (void)setLoggedUser:(BBObject*)user {
+    self._loggedUser = user;
+    NSString* path = [self.basePath stringByAppendingPathComponent:@"user"];
+    if (user == nil) {
+        // TODO: logout
+    } else {
+        // TODO: persist information
+    }
+    NSLog(@"user %@", path);
+}
+
+- (void)logout {
+    [self setLoggedUser:nil];
+}
+
+- (void)loadLoggedUser {
+    // NSString* path = [self.basePath stringByAppendingPathComponent:@"user"];
+}
+
+- (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    NSMutableDictionary* body = [[NSMutableDictionary alloc] init];
+    [body setObject:email forKey:@"email"];
+    [body setObject:password forKey:@"password"];
+    
+    [self perform:@"POST" path:@"/user/email/login" params:nil body:body success:^(id result) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        NSString* status = [result stringForKey:@"status"];
+        if (!status) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
+            failure([BBError errorWithStatus:status result:result]);
+            return;
+        }
+        
+        BBObject* user = nil;
+        NSDictionary* object = [result dictionaryForKey:@"object"];
+        if (object) {
+            user = [[BBObject alloc] initWith:self entity:@"user" dictionary:object references:nil identifier:nil];
+            [self setLoggedUser:user];
+        }
+        success(user);
+    } failure:^(id result, NSError* error) {
+        failure([BBError errorWithResult:result error:error]);
+    }];
+}
+
+- (void)requestPasswordResetWithEmail:(NSString*)email success:(SuccessBlock)success failure:(FailureBlock)failure {
+    NSDictionary* body = [NSDictionary dictionaryWithObject:email forKey:@"email"];
+    [self perform:@"POST" path:@"/user/email/lostpassword" params:nil body:body success:^(id result) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        NSString* status = [result stringForKey:@"status"];
+        if (!status) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        if (![status isEqualToString:@"Success"]) {
+            failure([BBError errorWithStatus:status result:result]);
+            return;
+        }
+        success();
+    } failure:^(id result, NSError* error) {
+        failure([BBError errorWithResult:result error:error]);
+    }];
+}
+
+- (BBQuery*)queryForEntity:(NSString*)entity {
+    return [[BBQuery alloc] initWith:self entity:entity];
+}
+
+- (BBObject*)emptyObjectForEntity:(NSString*)entity {
+    return [[BBObject alloc] initWith:self entity:entity];
+}
+
+- (BBObject*)emptyObjectForEntity:(NSString*)entity withIdentifier:(NSString*)identifier {
+    return [[BBObject alloc] initWith:self entity:entity andIdentifier:identifier];
+}
+
++ (BackbeamSession*)instance {
+    static BackbeamSession *inst = nil;
+    @synchronized(self){
+        if (!inst) {
+            inst = [[self alloc] initInstance];
+            inst.host = @"backbam.io";
+            inst.port = 80;
+            inst.env  = @"dev";
+        }
+    }
+    return inst;
+}
+
+@end
+
+@implementation Backbeam
+
++ (void)setHost:(NSString*)host port:(NSInteger)port {
+    [[BackbeamSession instance] setHost:host port:port];
+}
+
++ (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
+    [[BackbeamSession instance] setProject:project sharedKey:sharedKey secretKey:secretKey environment:env];
+}
+
++ (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
+    [[BackbeamSession instance] setTwitterConsumerKey:twitterConsumerKey consumerSecret:twitterConsumerSecret];
+}
+
++ (BBTwitterLoginViewController*)twitterLoginViewController {
+    return [[BackbeamSession instance] twitterLoginViewController];
+}
+
++ (void)persistDeviceToken:(NSData*)data {
+    [[BackbeamSession instance] persistDeviceToken:data];
+}
+
++ (BOOL)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    return [[BackbeamSession instance] subscribeToChannels:channels success:success failure:failure];
+}
+
++ (BOOL)subscribeToChannels:(NSArray*)channels {
+    return [[BackbeamSession instance] subscribeToChannels:channels success:^{} failure:^(NSError* err){}];
+}
+
++ (BOOL)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    return [[BackbeamSession instance] unsubscribeFromChannels:channels success:success failure:failure];
+}
+
++ (BOOL)unsubscribeFromChannels:(NSArray*)channels {
+    return [[BackbeamSession instance] unsubscribeFromChannels:channels success:^{} failure:^(NSError* err){}];
+}
+
++ (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureBlock)failure {
+    [[BackbeamSession instance] sendPushNotification:notification toChannel:channel success:success failure:failure];
 }
 
 + (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel {
-    [[Backbeam instance] sendPushNotification:notification toChannel:channel success:^{} failure:^(NSError* err){}];
+    [[BackbeamSession instance] sendPushNotification:notification toChannel:channel success:^{} failure:^(NSError* err){}];
+}
+
++ (BBObject*)loggedUser {
+    return [BackbeamSession instance]._loggedUser;
+}
+
++ (void)logout {
+    [[BackbeamSession instance] logout];
+}
+
++ (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    [[BackbeamSession instance] loginWithEmail:email password:password success:success failure:failure];
+}
+
++ (BBQuery*)queryForEntity:(NSString*)entity {
+    return [[BackbeamSession instance] queryForEntity:entity];
+}
+
++ (void)requestPasswordResetWithEmail:(NSString*)email success:(SuccessBlock)success failure:(FailureBlock)failure {
+    return [[BackbeamSession instance] requestPasswordResetWithEmail:email success:success failure:failure];
+}
+
++ (BBObject*)emptyObjectForEntity:(NSString*)entity {
+    return [[BackbeamSession instance] emptyObjectForEntity:entity];
+}
+
++ (BBObject*)emptyObjectForEntity:(NSString*)entity withIdentifier:(NSString*)identifier {
+    return [[BackbeamSession instance] emptyObjectForEntity:entity withIdentifier:identifier];
 }
 
 @end

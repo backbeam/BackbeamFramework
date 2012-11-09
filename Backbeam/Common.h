@@ -8,10 +8,16 @@
 
 @class BBObject;
 @class BBUser;
+@class BBError;
 
-typedef void(^SuccessBlock)();
+// internal use
 typedef void(^SuccessOperationBlock)(id result);
-typedef void(^FailureOperationBlock)(NSError* err);
+typedef void(^FailureOperationBlock)(id result, NSError* err);
+typedef void(^SuccessOperationObjectBlock)(NSString* status, BBObject* object);
+
+// public use
+typedef void(^SuccessBlock)();
+typedef void(^FailureBlock)(NSError* err);
 
 typedef void(^SuccessImageBlock)(UIImage* img);
 

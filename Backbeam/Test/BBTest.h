@@ -7,14 +7,16 @@
 //
 
 #import "BBObject.h"
-#define assertIfError(test, error) if(error != nil) { [test failed:[error localizedDescription] file:__FILE__ line:__LINE__]; return; }
-#define assertOk(test, condition) if(!condition) { [test failed:@"assertOk" file:__FILE__ line:__LINE__]; return; }
-#define assertEqual(test, a, b) if(a != b && ![a isEqual:b]) { [test failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
-#define assertNotEqual(test, a, b) if(a == b || [a isEqual:b]) { [test failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
+#define assertError(message) [self failed:message file:__FILE__ line:__LINE__]; return;
+#define assertIfError(error) if(error != nil) { [self failed:[error localizedDescription] file:__FILE__ line:__LINE__]; return; }
+#define assertOk(condition) if(!condition) { [self failed:@"assertOk" file:__FILE__ line:__LINE__]; return; }
+#define assertNotOk(condition) if(condition) { [self failed:@"assertNotOk" file:__FILE__ line:__LINE__]; return; }
+#define assertEqual(a, b) if(a != b && ![a isEqual:b]) { [self failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
+#define assertNotEqual(a, b) if(a == b || [a isEqual:b]) { [self failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
 
 @class BBTest;
 typedef void(^DoneBlock)();
-typedef void(^TestBlock)(BBTest* test, DoneBlock done);
+typedef void(^TestBlock)(DoneBlock done);
 
 @interface BBTest : BBObject
 
@@ -28,5 +30,7 @@ typedef void(^TestBlock)(BBTest* test, DoneBlock done);
 - (void)run:(DoneBlock)done;
 
 - (void)failed:(NSString*)message file:(char*)filename line:(int)line;
+
+- (void)configure;
 
 @end
