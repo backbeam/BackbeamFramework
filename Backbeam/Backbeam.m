@@ -62,6 +62,7 @@
         path = [self.basePath stringByAppendingPathComponent:kDeviceTokenPathComponent];
         // TODO: handle error
         self.deviceToken = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+        self._loggedUser = [[BBObject alloc] initWith:self entity:@"user" file:[self userPath]];
     }
     return self;
 }
@@ -224,21 +225,19 @@
 
 - (void)setLoggedUser:(BBObject*)user {
     self._loggedUser = user;
-    NSString* path = [self.basePath stringByAppendingPathComponent:@"user"];
     if (user == nil) {
-        // TODO: logout
+        [[NSFileManager defaultManager] removeItemAtPath:[self userPath] error:nil]; // TODO: handle error
     } else {
-        // TODO: persist information
+        [user saveToFile:[self userPath]];
     }
-    NSLog(@"user %@", path);
 }
 
 - (void)logout {
     [self setLoggedUser:nil];
 }
 
-- (void)loadLoggedUser {
-    // NSString* path = [self.basePath stringByAppendingPathComponent:@"user"];
+- (NSString*)userPath {
+    return [self.basePath stringByAppendingPathComponent:@"user"];
 }
 
 - (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
@@ -308,7 +307,7 @@
 }
 
 - (BBObject*)emptyObjectForEntity:(NSString*)entity withIdentifier:(NSString*)identifier {
-    return [[BBObject alloc] initWith:self entity:entity andIdentifier:identifier];
+    return [[BBObject alloc] initWith:self entity:entity identifier:identifier];
 }
 
 + (BackbeamSession*)instance {

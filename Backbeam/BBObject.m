@@ -35,7 +35,7 @@
     return self;
 }
 
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity andIdentifier:(NSString*)identifier
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity identifier:(NSString*)identifier
 {
     self = [super init];
     if (self) {
@@ -60,6 +60,28 @@
         [self fillValuesWithDictionary:dict andReferences:references];
     }
     return self;
+}
+
+- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity file:(NSString*)path
+{
+    self = [super init];
+    if (self) {
+        NSDictionary* dict = [NSKeyedUnarchiver unarchiveObjectWithFile:path];
+        if (!dict) {
+            return nil;
+        }
+        self._entity = entity;
+        self._fields = [NSMutableDictionary dictionaryWithDictionary:[dict dictionaryForKey:@"fields"]];
+        self._identifier = [dict stringForKey:@"id"];
+        self._commands = [[NSMutableDictionary alloc] init];
+        self._session = session;
+    }
+    return self;
+}
+
+- (BOOL)saveToFile:(NSString*)path {
+    NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:self._identifier, @"id", self._fields, @"fields", nil];
+    return [NSKeyedArchiver archiveRootObject:dict toFile:path];
 }
 
 - (void)fillValuesWithDictionary:(NSDictionary*)dict andReferences:(NSDictionary*)references {

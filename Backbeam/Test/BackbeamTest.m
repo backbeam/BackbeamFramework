@@ -19,7 +19,7 @@
         done();
     }];
     
-    [self test:@"User already registered" done:^(DoneBlock done) {
+    [self test:@"Cannot create BackbeamSession directly" done:^(DoneBlock done) {
         assertNotOk([[BackbeamSession alloc] init]);
         done();
     }];

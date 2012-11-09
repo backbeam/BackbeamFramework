@@ -15,10 +15,27 @@
 
 @interface BBObject : NSObject
 
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity;
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity;
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity andIdentifier:(NSString*)identifier;
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier;
+- (id)initWith:(BackbeamSession*)session
+        entity:(NSString*)entity;
+
+- (id)initWith:(BackbeamSession*)session
+        entity:(NSString*)entity;
+
+- (id)initWith:(BackbeamSession*)session
+        entity:(NSString*)entity
+    identifier:(NSString*)identifier;
+
+- (id)initWith:(BackbeamSession*)session
+        entity:(NSString*)entity
+    dictionary:(NSDictionary*)dict
+    references:(NSDictionary *)references
+    identifier:(NSString*)identifier;
+
+- (id)initWith:(BackbeamSession*)session
+        entity:(NSString*)entity
+          file:(NSString*)path;
+
+- (BOOL)saveToFile:(NSString*)path;
 
 - (NSString*)identifier;
 - (NSString*)entity;
