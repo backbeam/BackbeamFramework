@@ -13,6 +13,7 @@
 #import "BBPushNotification.h"
 #import "Common.h"
 #import "NSDictionary+SanityChecks.h"
+#import "BBLocation.h"
 #import "BBError.h"
 
 @class BBQuery;

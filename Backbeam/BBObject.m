@@ -115,6 +115,14 @@
                     value = [NSDictionary dictionaryWithObjectsAndKeys:refs, @"result", count, @"count", nil];
                 } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSString class]]) {
                     value = [references objectForKey:value];
+                } else if ([type isEqualToString:@"l"] && [value isKindOfClass:[NSDictionary class]]) {
+                    NSDictionary* dict = (NSDictionary*)value;
+                    BBLocation* location = [[BBLocation alloc] init];
+                    location.latitude  = [dict numberForKey:@"lat"].doubleValue;
+                    location.longitude = [dict numberForKey:@"lon"].doubleValue;
+                    location.altitude  = [dict numberForKey:@"alt"].doubleValue;
+                    location.address   = [dict stringForKey:@"addr"];
+                    value = location;
                 }
                 if (value) { // sanity check
                     [self._fields setObject:value forKey:_key];
@@ -171,15 +179,49 @@
 
 - (BBObject*)referenceForKey:(NSString*)key {
     id obj = [self._fields objectForKey:key];
-    if ([obj isKindOfClass:[NSNumber class]]) {
+    if ([obj isKindOfClass:[BBObject class]]) {
         return (BBObject*)obj;
     }
     return nil;
 }
 
+- (BBLocation*)locationForKey:(NSString*)key {
+    id obj = [self._fields objectForKey:key];
+    if ([obj isKindOfClass:[BBLocation class]]) {
+        return (BBLocation*)obj;
+    }
+    return nil;
+}
+
+- (NSString*)commandValue:(id)obj {
+    NSString* commandValue = nil;
+    if ([obj isKindOfClass:[NSString class]]) {
+        commandValue = (NSString*)obj;
+    } else if ([obj isKindOfClass:[BBObject class]]) {
+        BBObject* object = (BBObject*)obj;
+        commandValue = object.identifier;
+    } else if ([obj isKindOfClass:[NSDate class]]) {
+        NSDate* date = (NSDate*)obj;
+        commandValue = [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970]*1000)];
+        NSLog(@"date %@", commandValue);
+    } else if ([obj isKindOfClass:[BBLocation class]]) {
+        BBLocation* location = (BBLocation*)obj;
+        commandValue = [NSString stringWithFormat:@"%f,%f,%f|%@",
+                        location.latitude, location.longitude,
+                        location.altitude, location.address];
+    }
+    return commandValue;
+}
+
 - (void)setObject:(id)obj forKey:(NSString*)key {
     [self._fields setObject:obj forKey:key];
-    [self._commands setObject:obj forKey:key];
+    
+    NSString* commandValue = [self commandValue:obj];
+    if (commandValue) {
+        [self._commands setObject:commandValue forKey:key];
+    } else {
+        // TODO
+    }
 }
 
 - (id)objectForKey:(NSString*)key {
@@ -262,8 +304,6 @@
             if ([self.entity isEqualToString:@"user"] && [method isEqualToString:@"POST"]) {
                 [Backbeam logout]; // logout previous user
                 if ([status isEqualToString:@"Success"]) { // not PendingValidation
-                    // TODO: set current user
-                    NSLog(@"set current user!");
                     [self._session setLoggedUser:self];
                 }
                 success(object);
@@ -308,6 +348,10 @@
 
 - (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success {
     return [self._session image:self._identifier withSize:size success:success];
+}
+
+- (NSString *)description {
+    return [NSString stringWithFormat:@"entity=%@ identifier=%@ fields=%@", self.entity, self.identifier, self._fields];
 }
 
 @end

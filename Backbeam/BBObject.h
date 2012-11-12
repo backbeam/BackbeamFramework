@@ -11,6 +11,7 @@
 #import "Backbeam.h"
 
 @class BBObject;
+@class BBLocation;
 @class BackbeamSession;
 
 @interface BBObject : NSObject
@@ -46,6 +47,7 @@
 - (NSDate*)dateForKey:(NSString*)key;
 - (NSNumber*)numberForKey:(NSString*)key;
 - (BBObject*)referenceForKey:(NSString*)key;
+- (BBLocation*)locationForKey:(NSString*)key;
 - (id)objectForKey:(NSString*)key;
 
 - (void)setObject:(id)obj forKey:(NSString*)key;

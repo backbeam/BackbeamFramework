@@ -35,8 +35,13 @@
     }];
     
     [self test:@"Insert, update, refresh an object" done:^(DoneBlock done) {
+        BBLocation* location = [[BBLocation alloc] initWithLatitude:41.640964
+                                                          longitude:-0.8952422
+                                                            address:@"San Francisco Square, Zaragoza City"];
+        
         BBObject* object = [Backbeam emptyObjectForEntity:@"place"];
         [object setObject:@"A new place" forKey:@"name"];
+        [object setObject:location forKey:@"location"];
         [object save:^(BBObject* object) {
             assertOk(object.identifier);
             assertOk(object.createdAt);
@@ -56,6 +61,11 @@
                 [object refresh:^(BBObject* lastObject) {
                     assertEqual([obj stringForKey:@"name"], [lastObject stringForKey:@"name"]);
                     assertEqual([obj stringForKey:@"type"], [lastObject stringForKey:@"type"]);
+                    BBLocation* location = [lastObject locationForKey:@"location"];
+                    assertOk(location);
+                    assertEqual(location.address, @"San Francisco Square, Zaragoza City");
+                    assertOk(location.latitude  == 41.640964);
+                    assertOk(location.longitude == -0.8952422);
                     assertEqual(obj.createdAt, lastObject.createdAt);
                     
                     [lastObject setObject:@"Final name" forKey:@"name"];
