@@ -11,8 +11,17 @@
 @interface NSDictionary (SanityChecks)
 
 - (NSString*)stringForKey:(id)key;
+
 - (NSNumber*)numberForKey:(id)key;
+
+- (NSDate*)dateForKey:(id)key;
+
 - (NSDictionary*)dictionaryForKey:(id)key;
+
+- (NSMutableDictionary*)mutableDictionaryForKey:(id)key;
+
 - (NSArray*)arrayForKey:(id)key;
+
+- (NSArray*)mutableArrayForKey:(id)key;
 
 @end

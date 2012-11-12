@@ -7,14 +7,15 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "BBTwitterLoginViewController.h"
-#import "BBObject.h"
-#import "BBQuery.h"
-#import "BBPushNotification.h"
-#import "Common.h"
 #import "NSDictionary+SanityChecks.h"
-#import "BBLocation.h"
+#import "Common.h"
 #import "BBError.h"
+#import "BBQuery.h"
+#import "BBObject.h"
+#import "BBLocation.h"
+#import "BBJoinResult.h"
+#import "BBPushNotification.h"
+#import "BBTwitterLoginViewController.h"
 
 @class BBQuery;
 @class BBTwitterLoginViewController;

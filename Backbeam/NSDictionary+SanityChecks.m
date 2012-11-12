@@ -26,6 +26,14 @@
     return (NSNumber*)value;
 }
 
+- (NSDate*)dateForKey:(id)key {
+    id value = [self objectForKey:key];
+    if (value == nil || value == [NSNull null] || ![value isKindOfClass:[NSDate class]]) {
+        return nil;
+    }
+    return (NSDate*)value;
+}
+
 - (NSDictionary*)dictionaryForKey:(id)key {
     id value = [self objectForKey:key];
     if (value == nil || value == [NSNull null] || ![value isKindOfClass:[NSDictionary class]]) {
@@ -34,12 +42,28 @@
     return (NSDictionary*)value;
 }
 
+- (NSMutableDictionary*)mutableDictionaryForKey:(id)key {
+    id value = [self objectForKey:key];
+    if (value == nil || value == [NSNull null] || ![value isKindOfClass:[NSDictionary class]]) {
+        return nil;
+    }
+    return [NSMutableDictionary dictionaryWithDictionary:(NSDictionary*)value];
+}
+
 - (NSArray*)arrayForKey:(id)key {
     id value = [self objectForKey:key];
     if (value == nil || value == [NSNull null] || ![value isKindOfClass:[NSArray class]]) {
         return nil;
     }
     return (NSArray*)value;
+}
+
+- (NSMutableArray*)mutableArrayForKey:(id)key {
+    id value = [self objectForKey:key];
+    if (value == nil || value == [NSNull null] || ![value isKindOfClass:[NSArray class]]) {
+        return nil;
+    }
+    return [NSMutableArray arrayWithArray:(NSArray*)value];
 }
 
 @end

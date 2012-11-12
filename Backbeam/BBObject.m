@@ -103,8 +103,9 @@
                     value = [NSDate dateWithTimeIntervalSince1970:n.doubleValue/1000];
                 } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSDictionary class]]) {
                     NSDictionary* dict = (NSDictionary*)value;
-                    NSNumber* count = [dict objectForKey:@"count"];
-                    NSArray* arr = [dict objectForKey:@"result"];
+                    BBJoinResult* result = [[BBJoinResult alloc] init];
+                    result.count = [dict numberForKey:@"count"].integerValue;
+                    NSArray* arr = [dict arrayForKey:@"result"];
                     NSMutableArray* refs = [[NSMutableArray alloc] initWithCapacity:arr.count];
                     for (NSString* identifier in arr) {
                         NSDictionary* obj = [references objectForKey:identifier];
@@ -112,7 +113,8 @@
                             [refs addObject:obj];
                         }
                     }
-                    value = [NSDictionary dictionaryWithObjectsAndKeys:refs, @"result", count, @"count", nil];
+                    result.objects = refs;
+                    value = result;
                 } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSString class]]) {
                     value = [references objectForKey:value];
                 } else if ([type isEqualToString:@"l"] && [value isKindOfClass:[NSDictionary class]]) {
@@ -154,27 +156,15 @@
 }
 
 - (NSString*)stringForKey:(NSString*)key {
-    id obj = [self._fields objectForKey:key];
-    if ([obj isKindOfClass:[NSString class]]) {
-        return (NSString*)obj;
-    }
-    return nil;
+    return [self._fields stringForKey:key];
 }
 
 - (NSDate*)dateForKey:(NSString*)key {
-    id obj = [self._fields objectForKey:key];
-    if ([obj isKindOfClass:[NSDate class]]) {
-        return (NSDate*)obj;
-    }
-    return nil;
+    return [self._fields dateForKey:key];
 }
 
 - (NSNumber*)numberForKey:(NSString*)key {
-    id obj = [self._fields objectForKey:key];
-    if ([obj isKindOfClass:[NSNumber class]]) {
-        return (NSNumber*)obj;
-    }
-    return nil;
+    return [self._fields numberForKey:key];
 }
 
 - (BBObject*)referenceForKey:(NSString*)key {
@@ -193,6 +183,14 @@
     return nil;
 }
 
+- (BBJoinResult*)joinResultForKey:(NSString*)key {
+    id obj = [self._fields objectForKey:key];
+    if ([obj isKindOfClass:[BBJoinResult class]]) {
+        return (BBJoinResult*)obj;
+    }
+    return nil;
+}
+
 - (NSString*)commandValue:(id)obj {
     NSString* commandValue = nil;
     if ([obj isKindOfClass:[NSString class]]) {
@@ -203,7 +201,6 @@
     } else if ([obj isKindOfClass:[NSDate class]]) {
         NSDate* date = (NSDate*)obj;
         commandValue = [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970]*1000)];
-        NSLog(@"date %@", commandValue);
     } else if ([obj isKindOfClass:[BBLocation class]]) {
         BBLocation* location = (BBLocation*)obj;
         commandValue = [NSString stringWithFormat:@"%f,%f,%f|%@",
@@ -213,15 +210,39 @@
     return commandValue;
 }
 
-- (void)setObject:(id)obj forKey:(NSString*)key {
-    [self._fields setObject:obj forKey:key];
-    
+- (BOOL)setObject:(id)obj forKey:(NSString*)key {
     NSString* commandValue = [self commandValue:obj];
-    if (commandValue) {
-        [self._commands setObject:commandValue forKey:key];
-    } else {
-        // TODO
+    if (!commandValue) return NO;
+    
+    [self._fields setObject:obj forKey:key];
+    [self._commands setObject:commandValue forKey:key];
+    return YES;
+}
+
+- (BOOL)addReference:(BBObject*)object forKey:(NSString*)key {
+    if (!object.identifier) return NO;
+    
+    NSString* command = [NSString stringWithFormat:@"_add-%@", key];
+    NSMutableArray* arr = [self._commands objectForKey:command];
+    if (!arr) {
+        arr = [NSMutableArray array];
+        [self._commands setObject:arr forKey:command];
     }
+    [arr addObject:object.identifier];
+    return YES;
+}
+
+- (BOOL)removeReference:(BBObject*)object forKey:(NSString*)key {
+    if (!object.identifier) return NO;
+    
+    NSString* command = [NSString stringWithFormat:@"_rem-%@", key];
+    NSMutableArray* arr = [self._commands objectForKey:command];
+    if (!arr) {
+        arr = [NSMutableArray array];
+        [self._commands setObject:arr forKey:command];
+    }
+    [arr addObject:object.identifier];
+    return YES;
 }
 
 - (id)objectForKey:(NSString*)key {
@@ -234,7 +255,6 @@
 }
 
 - (void)increment:(NSString*)key by:(NSInteger)value {
-    // TODO: send command _incr-
     NSNumber* n = [self numberForKey:key];
     if (n) {
         n = [NSNumber numberWithInteger:n.integerValue+value];
@@ -242,6 +262,8 @@
         n = [NSNumber numberWithInteger:value];
     }
     [self._fields setObject:n forKey:key];
+    NSString* command = [NSString stringWithFormat:@"_incr-%@", key];
+    [self._commands setObject:[NSString stringWithFormat:@"%d", value] forKey:command];
 }
 
 - (void)processResponse:(id)result success:(SuccessOperationObjectBlock)success failure:(FailureObjectBlock)failure {

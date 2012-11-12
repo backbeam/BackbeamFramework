@@ -12,9 +12,12 @@
 
 @class BBObject;
 @class BBLocation;
+@class BBJoinResult;
 @class BackbeamSession;
 
 @interface BBObject : NSObject
+
+// constructors
 
 - (id)initWith:(BackbeamSession*)session
         entity:(NSString*)entity;
@@ -38,27 +41,64 @@
 
 - (BOOL)saveToFile:(NSString*)path;
 
+// methods for reading default fields
+
 - (NSString*)identifier;
+
 - (NSString*)entity;
+
 - (NSDate*)createdAt;
+
 - (NSDate*)updatedAt;
 
+// methods for reading fields
+
 - (NSString*)stringForKey:(NSString*)key;
+
 - (NSDate*)dateForKey:(NSString*)key;
+
 - (NSNumber*)numberForKey:(NSString*)key;
+
 - (BBObject*)referenceForKey:(NSString*)key;
+
 - (BBLocation*)locationForKey:(NSString*)key;
+
+- (BBJoinResult*)joinResultForKey:(NSString*)key;
+
 - (id)objectForKey:(NSString*)key;
 
-- (void)setObject:(id)obj forKey:(NSString*)key;
+// methods for modifying fields
+
+- (BOOL)setObject:(id)obj
+           forKey:(NSString*)key;
+
 - (void)removeObjectForKey:(NSString*)key;
 
-- (void)increment:(NSString*)key by:(NSInteger)value;
+- (BOOL)addReference:(BBObject*)object
+              forKey:(NSString*)key;
 
-- (BOOL)save:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
-- (BOOL)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
-- (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure;
+- (BOOL)removeReference:(BBObject*)object
+                 forKey:(NSString*)key;
 
-- (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success;
+- (void)increment:(NSString*)key
+               by:(NSInteger)value;
+
+// methods that interact with the API
+
+- (BOOL)save:(SuccessObjectBlock)success
+     failure:(FailureObjectBlock)failure;
+
+- (BOOL)remove:(SuccessObjectBlock)success
+       failure:(FailureObjectBlock)failure;
+
+- (BOOL)refresh:(SuccessObjectBlock)success
+        failure:(FailureObjectBlock)failure;
+
+// methods for files
+
+- (UIImage*)imageWithSize:(CGSize)size
+                  success:(SuccessImageBlock)success;
+
+// TODO: methods for users
 
 @end
