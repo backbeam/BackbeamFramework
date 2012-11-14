@@ -14,6 +14,8 @@
 typedef void(^SuccessOperationBlock)(id result);
 typedef void(^FailureOperationBlock)(id result, NSError* err);
 typedef void(^SuccessOperationObjectBlock)(NSString* status, BBObject* object);
+typedef void(^SuccessDataBlock)(NSData* data);
+typedef void(^ProgressDataBlock)(NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
 
 // public use
 typedef void(^SuccessBlock)();
@@ -29,3 +31,6 @@ typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
 
 typedef void(^SuccessUserBlock)(BBUser* user);
 typedef void(^FailureUserBlock)(BBUser* user, NSError* err);
+
+typedef void(^ProgressDataObjectBlock)(BBObject* object, NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
+typedef void(^SuccessDownloadBlock)(BBObject* object, NSData*);

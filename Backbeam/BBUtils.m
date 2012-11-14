@@ -10,6 +10,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <CommonCrypto/CommonCryptor.h>
 #import <CommonCrypto/CommonHMAC.h>
+#import "BBObject.h"
 
 @implementation BBUtils
 
@@ -112,6 +113,25 @@
     NSData *hmac = [[NSData alloc] initWithBytes:cHMAC
                                           length:sizeof(cHMAC)];
     return hmac;
+}
+
++ (NSString*)stringFromObject:(id)obj {
+    NSString* value = nil;
+    if ([obj isKindOfClass:[NSString class]]) {
+        value = (NSString*)obj;
+    } else if ([obj isKindOfClass:[BBObject class]]) {
+        BBObject* object = (BBObject*)obj;
+        value = object.identifier;
+    } else if ([obj isKindOfClass:[NSDate class]]) {
+        NSDate* date = (NSDate*)obj;
+        value = [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970]*1000)];
+    } else if ([obj isKindOfClass:[BBLocation class]]) {
+        BBLocation* location = (BBLocation*)obj;
+        value = [NSString stringWithFormat:@"%f,%f,%f|%@",
+                        location.latitude, location.longitude,
+                        location.altitude, location.address];
+    }
+    return value;
 }
 
 @end

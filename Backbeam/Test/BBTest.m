@@ -72,8 +72,8 @@
 
 - (void)runNext {
     if (self.i < self.tests.count) {
+        NSLog(@"Running: %@", [self.testNames objectAtIndex:self.i]);
         self._beforeEach(^{
-            NSLog(@"Running: %@", [self.testNames objectAtIndex:self.i]);
             TestBlock test = (TestBlock) [self.tests objectAtIndex:self.i];
             test(^{
                 self.i++;
@@ -83,6 +83,7 @@
             });
         });
     } else {
+        // TODO: after
         self._finish();
     }
 }

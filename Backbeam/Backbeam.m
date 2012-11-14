@@ -17,6 +17,8 @@
 
 @interface BackbeamSession ()
 
+@property (nonatomic, strong) AFHTTPClient* client;
+
 @property (nonatomic, strong) NSString* host;
 @property (nonatomic, assign) NSInteger port;
 
@@ -73,10 +75,13 @@
 }
 
 - (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
-    self.project = project;
+    self.project   = project;
     self.sharedKey = sharedKey;
     self.secretKey = secretKey;
     self.env = env;
+    NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d",
+                     self.env, self.project, self.host, self.port];
+    self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
 }
 
 - (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
@@ -91,20 +96,17 @@
     return vc;
 }
 
-- (void)perform:(NSString*)httpMethod path:(NSString*)path params:(NSDictionary*)params body:(NSDictionary*)body success:(SuccessOperationBlock)success failure:(FailureOperationBlock)failure {
+- (void)perform:(NSString*)httpMethod
+           path:(NSString*)path
+         params:(NSDictionary*)params
+        success:(SuccessOperationBlock)success
+        failure:(FailureOperationBlock)failure {
     
-    NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d%@", self.env, self.project, self.host, self.port, path];
-    if (params) {
-        url = [url stringByAppendingFormat:@"?%@", [BBUtils queryString:params]];
-    }
-    // NSLog(@"%@ %@", httpMethod, url);
-    NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
-    [req setHTTPMethod:httpMethod];
-    if (body) {
-        NSString* bodyString = [BBUtils queryString:body];
-        [req setHTTPBody:[bodyString dataUsingEncoding:NSUTF8StringEncoding]];
-        [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-    }
+//    NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:params constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+//        
+//    }];
+    
+    NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
         success(result);
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
@@ -113,38 +115,60 @@
     [operation start];
 }
 
-- (UIImage*)image:(NSString*)identifier withSize:(CGSize)size success:(SuccessImageBlock)success {
+- (UIImage*)image:(NSString*)identifier
+         withSize:(CGSize)size
+         progress:(ProgressDataBlock)progress
+          success:(SuccessImageBlock)success
+          failure:(FailureBlock)failure {
     
     CGFloat scale = [UIScreen mainScreen].scale;
-    int width  = (int)(size.width *scale);
-    int height = (int)(size.height*scale);
+    NSString* width  = [NSString stringWithFormat:@"%d", (int)(size.width *scale)];
+    NSString* height = [NSString stringWithFormat:@"%d", (int)(size.height*scale)];
     
-    NSString* url = [@"http://" stringByAppendingFormat:@"%@.%@:%d/file/%@/%@?width=%d&height=%d",
-                     self.project, self.host, self.port, self.env, identifier, width, height];
+    NSString* path = [@"/data/file/show/" stringByAppendingString:identifier];
+    NSDictionary* params = [NSDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
+    NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
     
+    NSString* url = [req.URL description];
     UIImage* img = [self.cache objectForKey:url];
     if (img) return img;
     
-    NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
-    
-    AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
-    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation* operation, id response) {
-        if (response) { // TODO: isKindOfClass:[NSData data] but was __NSCFData
-            NSData* data = (NSData*)response;
-            UIImage* img = [UIImage imageWithData:data scale:scale];
-            // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
+    [self download:req progress:progress success:^(NSData* data) {
+        UIImage* img = [UIImage imageWithData:data scale:scale];
+        // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
+        if (img) {
             [self.cache setObject:img forKey:url];
             success(img);
         } else {
-            // TODO error with unexpected response
+            failure([BBError errorWithStatus:@"InvalidImage" result:nil]);
+        }
+    } failure:failure];
+    return nil;
+}
+
+- (void)downloadPath:(NSString*)path progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {
+    NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:nil];
+    [self download:req progress:progress success:success failure:failure];
+}
+
+- (void)download:(NSMutableURLRequest*)req progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {
+    AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
+    if (progress) {
+        [operation setDownloadProgressBlock:^(NSInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
+            progress(bytesRead, totalBytesRead, totalBytesExpectedToRead);
+        }];
+    }
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation* operation, id response) {
+        if (response) { // TODO: isKindOfClass:[NSData data] but was __NSCFData
+            NSData* data = (NSData*)response;
+            success(data);
+        } else {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:nil]);
         }
     } failure:^(AFHTTPRequestOperation* operation, NSError* error) {
-        // TODO
-        NSLog(@"error %@", error);
+        failure([BBError errorWithError:error]);
     }];
     [operation start];
-    
-    return nil;
 }
 
 - (void)persistDeviceToken:(NSData*)data {
@@ -158,7 +182,7 @@
     if (!self.deviceToken) { return NO; }
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
-    [self perform:@"POST" path:@"/push/subscribe" params:nil body:body success:^(id result) {
+    [self perform:@"POST" path:@"/push/subscribe" params:body success:^(id result) {
         [self processBasicResponse:result success:success failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
@@ -170,7 +194,7 @@
     if (!self.deviceToken) return NO;
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
-    [self perform:@"POST" path:@"/push/unsubscribe" params:nil body:body success:^(id result) {
+    [self perform:@"POST" path:@"/push/unsubscribe" params:body success:^(id result) {
         [self processBasicResponse:result success:success failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
@@ -216,7 +240,7 @@
     if (notification.sound) { [body setObject:notification.sound forKey:@"apn_sound"]; }
     // TODO: apn_payload = notification.extra
     
-    [self perform:@"POST" path:@"/push/send" params:nil body:body success:^(id result) {
+    [self perform:@"POST" path:@"/push/send" params:body success:^(id result) {
         [self processBasicResponse:result success:success failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
@@ -245,7 +269,7 @@
     [body setObject:email forKey:@"email"];
     [body setObject:password forKey:@"password"];
     
-    [self perform:@"POST" path:@"/user/email/login" params:nil body:body success:^(id result) {
+    [self perform:@"POST" path:@"/user/email/login" params:body success:^(id result) {
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
@@ -276,7 +300,7 @@
 
 - (void)requestPasswordResetWithEmail:(NSString*)email success:(SuccessBlock)success failure:(FailureBlock)failure {
     NSDictionary* body = [NSDictionary dictionaryWithObject:email forKey:@"email"];
-    [self perform:@"POST" path:@"/user/email/lostpassword" params:nil body:body success:^(id result) {
+    [self perform:@"POST" path:@"/user/email/lostpassword" params:body success:^(id result) {
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;

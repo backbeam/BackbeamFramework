@@ -8,6 +8,7 @@
 
 #import "BBObject.h"
 #import "BBError.h"
+#import "BBUtils.h"
 
 @interface BBObject ()
 
@@ -85,6 +86,7 @@
 }
 
 - (void)fillValuesWithDictionary:(NSDictionary*)dict andReferences:(NSDictionary*)references {
+    [self._commands removeAllObjects];
     for (NSString* key in dict.allKeys) {
         NSObject* value = [dict objectForKey:key];
         if ([key isEqualToString:@"id"]) {
@@ -93,6 +95,8 @@
             self._createdAt = [BBObject dateFromValue:value];
         } else if ([key isEqualToString:@"updated_at"]) {
             self._updatedAt = [BBObject dateFromValue:value];
+        } else if ([key isEqualToString:@"type"]) {
+            self._entity = [value description];
         } else {
             NSRange range = [key rangeOfString:@"#"];
             if (range.location != NSNotFound) {
@@ -191,27 +195,8 @@
     return nil;
 }
 
-- (NSString*)commandValue:(id)obj {
-    NSString* commandValue = nil;
-    if ([obj isKindOfClass:[NSString class]]) {
-        commandValue = (NSString*)obj;
-    } else if ([obj isKindOfClass:[BBObject class]]) {
-        BBObject* object = (BBObject*)obj;
-        commandValue = object.identifier;
-    } else if ([obj isKindOfClass:[NSDate class]]) {
-        NSDate* date = (NSDate*)obj;
-        commandValue = [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970]*1000)];
-    } else if ([obj isKindOfClass:[BBLocation class]]) {
-        BBLocation* location = (BBLocation*)obj;
-        commandValue = [NSString stringWithFormat:@"%f,%f,%f|%@",
-                        location.latitude, location.longitude,
-                        location.altitude, location.address];
-    }
-    return commandValue;
-}
-
 - (BOOL)setObject:(id)obj forKey:(NSString*)key {
-    NSString* commandValue = [self commandValue:obj];
+    NSString* commandValue = [BBUtils stringFromObject:obj];
     if (!commandValue) return NO;
     
     [self._fields setObject:obj forKey:key];
@@ -251,9 +236,10 @@
 
 - (void)removeObjectForKey:(NSString*)key {
     [self._fields removeObjectForKey:key];
-    [self._commands setObject:[NSNull null] forKey:key];
+    [self._commands setObject:[NSNull null] forKey:key]; // TODO, not tested. REST API could change
 }
 
+// TODO: support many increments without overriding previous command
 - (void)increment:(NSString*)key by:(NSInteger)value {
     NSNumber* n = [self numberForKey:key];
     if (n) {
@@ -317,8 +303,8 @@
         path = [NSString stringWithFormat:@"/data/%@", self._entity];
     }
     
-    [self._session perform:method path:path params:nil body:self._commands success:^(id result) {
-        [self._commands removeAllObjects];
+    [self._session perform:method path:path params:self._commands success:^(id result) {
+        // [self._commands removeAllObjects];
         [self processResponse:result success:^(NSString* status, BBObject* object) {
             if ([self.entity isEqualToString:@"user"]) {
                 [self._fields removeObjectForKey:@"password"];
@@ -328,10 +314,8 @@
                 if ([status isEqualToString:@"Success"]) { // not PendingValidation
                     [self._session setLoggedUser:self];
                 }
-                success(object);
-            } else {
-                success(object);
             }
+            success(object);
         } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processResponse:result error:err failure:failure];
@@ -343,7 +327,7 @@
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
-    [self._session perform:@"DELETE" path:path params:nil body:nil success:^(id result) {
+    [self._session perform:@"DELETE" path:path params:nil success:^(id result) {
         [self processResponse:result success:^(NSString* status, BBObject* object) {
             // TODO: if (is current user) logout; return;
             success(self);
@@ -358,7 +342,7 @@
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
-    [self._session perform:@"GET" path:path params:nil body:nil success:^(id result) {
+    [self._session perform:@"GET" path:path params:nil success:^(id result) {
         [self processResponse:result success:^(NSString* status, BBObject* object) {
             success(object);
         } failure:failure];
@@ -368,12 +352,80 @@
     return YES;
 }
 
-- (UIImage*)imageWithSize:(CGSize)size success:(SuccessImageBlock)success {
-    return [self._session image:self._identifier withSize:size success:success];
-}
-
 - (NSString *)description {
     return [NSString stringWithFormat:@"entity=%@ identifier=%@ fields=%@", self.entity, self.identifier, self._fields];
+}
+
+- (UIImage*)imageWithSize:(CGSize)size
+                  success:(SuccessImageBlock)success {
+    
+    return [self._session image:self._identifier withSize:size progress:nil success:success failure:^(NSError* error) {
+        // ignore
+    }];
+}
+
+- (UIImage*)imageWithSize:(CGSize)size
+                 progress:(ProgressDataBlock)progress
+                  success:(SuccessImageBlock)success
+                  failure:(FailureObjectBlock)failure {
+    
+    return [self._session image:self._identifier withSize:size progress:progress success:success failure:^(NSError* error) {
+        failure(self, error);
+    }];
+}
+
+// upload data
+
+- (BOOL)uploadDataWithProgress:(NSData*)data
+                      progress:(ProgressDataBlock)progress
+                       success:(SuccessObjectBlock)success
+                       failure:(FailureObjectBlock)failure {
+    return NO;
+}
+
+- (BOOL)uploadFileWithProgress:(NSString*)path
+                      progress:(ProgressDataBlock)progress
+                       success:(SuccessObjectBlock)success
+                       failure:(FailureObjectBlock)failure {
+    
+    return NO;
+}
+
+- (BOOL)uploadData:(NSData*)data
+           success:(SuccessObjectBlock)success
+           failure:(FailureObjectBlock)failure {
+    
+    return NO;
+}
+
+- (BOOL)uploadFile:(NSString*)path
+           success:(SuccessObjectBlock)success
+           failure:(FailureObjectBlock)failure {
+    
+    return NO;
+}
+
+// download data
+
+- (BOOL)downloadDataWithProgress:(ProgressDataBlock)progress
+                         success:(SuccessDownloadBlock)success
+                         failure:(FailureObjectBlock)failure {
+    
+    if (!self._identifier) { return NO; }
+    
+    NSString* path = [@"/data/file/show/" stringByAppendingString:self._identifier];
+    [self._session downloadPath:path progress:progress success:^(NSData* data) {
+        success(self, data);
+    } failure:^(NSError* error) {
+        failure(self, error);
+    }];
+    return YES;
+}
+
+- (BOOL)downloadData:(SuccessDownloadBlock)success
+             failure:(FailureObjectBlock)failure {
+    
+    return [self downloadDataWithProgress:nil success:success failure:failure];
 }
 
 @end

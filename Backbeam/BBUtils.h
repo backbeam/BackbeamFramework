@@ -20,4 +20,6 @@
 + (NSData*)sha1:(NSData*)rawData;
 + (NSData*)hmacSha1:(NSData*)data withKey:(NSData*)key;
 
++ (NSString*)stringFromObject:(id)obj;
+
 @end

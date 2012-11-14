@@ -99,6 +99,44 @@
 - (UIImage*)imageWithSize:(CGSize)size
                   success:(SuccessImageBlock)success;
 
+- (UIImage*)imageWithSize:(CGSize)size
+                  success:(SuccessImageBlock)success
+                  failure:(FailureObjectBlock)failure;
+
+- (UIImage*)imageWithSize:(CGSize)size
+                 progress:(ProgressDataBlock)progress
+                  success:(SuccessImageBlock)success
+                  failure:(FailureObjectBlock)failure;
+
+// upload data
+
+- (BOOL)uploadDataWithProgress:(NSData*)data
+                      progress:(ProgressDataBlock)progress
+                       success:(SuccessObjectBlock)success
+                       failure:(FailureObjectBlock)failure;
+
+- (BOOL)uploadFileWithProgress:(NSString*)path
+                      progress:(ProgressDataBlock)progress
+                       success:(SuccessObjectBlock)success
+                       failure:(FailureObjectBlock)failure;
+
+- (BOOL)uploadData:(NSData*)data
+           success:(SuccessObjectBlock)success
+           failure:(FailureObjectBlock)failure;
+
+- (BOOL)uploadFile:(NSString*)path
+           success:(SuccessObjectBlock)success
+           failure:(FailureObjectBlock)failure;
+
+// download data
+
+- (BOOL)downloadDataWithProgress:(ProgressDataBlock)progress
+                         success:(SuccessDownloadBlock)success
+                         failure:(FailureObjectBlock)failure;
+
+- (BOOL)downloadData:(SuccessDownloadBlock)success
+             failure:(FailureObjectBlock)failure;
+
 // TODO: methods for users
 
 @end

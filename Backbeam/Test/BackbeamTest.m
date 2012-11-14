@@ -177,6 +177,7 @@
             assertError(@"Registration should have failed");
         } failure:^(BBObject* object, NSError* error) {
             assertOk([error isMemberOfClass:[BBError class]]);
+            // TODO: check error message
             done();
         }];
     }];
@@ -186,6 +187,7 @@
             assertError(@"Login should have failed");
         } failure:^(NSError* error) {
             assertOk([error isMemberOfClass:[BBError class]]);
+            // TODO: check error message
             done();
         }];
     }];
@@ -195,6 +197,7 @@
             assertError(@"Login should have failed");
         } failure:^(NSError* error) {
             assertOk([error isMemberOfClass:[BBError class]]);
+            // TODO: check error message
             done();
         }];
     }];

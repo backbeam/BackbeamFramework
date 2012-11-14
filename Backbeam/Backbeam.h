@@ -22,7 +22,21 @@
 
 @interface BackbeamSession : NSObject
 
-- (UIImage*)image:(NSString*)identifier withSize:(CGSize)size success:(SuccessImageBlock)success;
+- (void)download:(NSMutableURLRequest*)request
+        progress:(ProgressDataBlock)progress
+         success:(SuccessDataBlock)success
+         failure:(FailureBlock)failure;
+
+- (void)downloadPath:(NSString*)path
+            progress:(ProgressDataBlock)progress
+             success:(SuccessDataBlock)success
+             failure:(FailureBlock)failure;
+
+- (UIImage*)image:(NSString*)identifier
+         withSize:(CGSize)size
+         progress:(ProgressDataBlock)progress
+          success:(SuccessImageBlock)success
+          failure:(FailureBlock)failure;
 
 - (void)setLoggedUser:(BBObject*)user;
 
@@ -31,7 +45,6 @@
 - (void)perform:(NSString*)httpMethod
            path:(NSString*)path
          params:(NSDictionary*)params
-           body:(NSDictionary*)body
         success:(SuccessOperationBlock)success
         failure:(FailureOperationBlock)failure;
 

@@ -8,6 +8,7 @@
 
 #import "BBQuery.h"
 #import "BBError.h"
+#import "BBUtils.h"
 
 @interface BBQuery ()
 
@@ -36,18 +37,13 @@
     self._query = query;
     self._cursor = nil;
     [self._parameters removeAllObjects];
-    for (NSObject* param in params) {
-        [self._parameters addObject:[self stringFromParam:param]];
+    for (id param in params) {
+        [self._parameters addObject:[BBUtils stringFromObject:param]];
     }
     self._cursor = nil;
 }
 
-- (NSString*)stringFromParam:(NSObject*)obj {
-    return [obj description];
-}
-
 - (void)fetch:(NSInteger)limit offset:(NSInteger)offset success:(SuccessQueryBlock)success failure:(FailureQueryBlock)failure {
-    
     NSString* path = [NSString stringWithFormat:@"/data/%@", self._entity];
     NSMutableDictionary* params = [[NSMutableDictionary alloc] init];
     if (self._query) {
@@ -59,13 +55,16 @@
     [params setObject:[NSString stringWithFormat:@"%d", limit]  forKey:@"limit"];
     [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
     
-    [self._session perform:@"GET" path:path params:params body:nil success:^(id result) {
+    [self._session perform:@"GET" path:path params:params success:^(id result) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([NSError errorWithDomain:@"Backbeam" code:400 userInfo:nil]);
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
         }
-        
-        NSDictionary* references = [result objectForKey:@"references"];
+        NSDictionary* references = [result dictionaryForKey:@"references"];
+        if (!references) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
         NSMutableDictionary* refs = [[NSMutableDictionary alloc] initWithCapacity:references.count];
         if (references) {
             for (NSString* identifier in references) {
@@ -76,7 +75,11 @@
             }
         }
         
-        NSArray* objects = [result objectForKey:@"objects"];
+        NSArray* objects = [result arrayForKey:@"objects"];
+        if (!objects) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:objects.count];
         for (NSDictionary* dict in objects) {
             BBObject* obj = [[BBObject alloc] initWith:self._session entity:self._entity dictionary:dict references:refs identifier:nil];
@@ -85,18 +88,19 @@
         
         success(arr);
     } failure:^(id result, NSError* error) {
+        if (error) {
+            failure([BBError errorWithError:error]);
+            return;
+        }
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
         }
-        
         NSString* status = [result stringForKey:@"status"];
         if (![status isEqualToString:@"Success"]) {
             failure([BBError errorWithStatus:status result:result]);
             return;
         }
-        
-        failure([BBError errorWithError:error]);
     }];
 }
 
