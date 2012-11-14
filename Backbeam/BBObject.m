@@ -365,6 +365,16 @@
 }
 
 - (UIImage*)imageWithSize:(CGSize)size
+                  success:(SuccessImageBlock)success
+                  failure:(FailureObjectBlock)failure {
+    
+    return [self._session image:self._identifier withSize:size progress:nil success:success failure:^(NSError* error) {
+        failure(self, error);
+    }];
+}
+
+
+- (UIImage*)imageWithSize:(CGSize)size
                  progress:(ProgressDataBlock)progress
                   success:(SuccessImageBlock)success
                   failure:(FailureObjectBlock)failure {
