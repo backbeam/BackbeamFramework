@@ -32,6 +32,16 @@
              success:(SuccessDataBlock)success
              failure:(FailureBlock)failure;
 
+- (void)upload:(NSString*)httpMethod
+          data:(NSData*)data
+      fileName:(NSString*)fileName
+      mimeType:(NSString*)mimeType
+          path:(NSString*)path
+        params:(NSDictionary*)params
+      progress:(ProgressDataBlock)progress
+       success:(SuccessOperationBlock)success
+       failure:(FailureOperationBlock)failure;
+
 - (UIImage*)image:(NSString*)identifier
          withSize:(CGSize)size
          progress:(ProgressDataBlock)progress

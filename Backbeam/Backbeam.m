@@ -36,6 +36,8 @@
 @property (nonatomic, strong) NSCache* cache;
 @property (nonatomic, strong) BBObject* _loggedUser;
 
+@property (nonatomic, strong) NSDictionary* knownMimeTypes;
+
 @end
 
 @interface Backbeam ()
@@ -102,16 +104,72 @@
         success:(SuccessOperationBlock)success
         failure:(FailureOperationBlock)failure {
     
-//    NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:params constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
-//        
-//    }];
-    
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
         success(result);
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
         failure(result, err);
     }];
+    [operation start];
+}
+
+- (void)upload:(NSString*)httpMethod
+          data:(NSData*)data
+      fileName:(NSString*)fileName
+      mimeType:(NSString*)mimeType
+          path:(NSString*)path
+        params:(NSDictionary*)params
+      progress:(ProgressDataBlock)progress
+       success:(SuccessOperationBlock)success
+       failure:(FailureOperationBlock)failure {
+
+    if (!mimeType) {
+        mimeType = @"application/octet-stream";
+    }
+    
+    if (!self.knownMimeTypes) {
+        self.knownMimeTypes = [NSDictionary dictionaryWithObjectsAndKeys:
+                               @"image/jpeg", @".jpg",
+                               @"image/jpeg", @".jpeg",
+                               @"image/png", @".png",
+                               @"image/gif", @".gif",
+                               @"video/quicktime", @".mov",
+                               @"audio/mpeg3", @".mp3",
+                               @"audio/wav", @".wav",
+                               @"audio/aiff", @".aif",
+                               @"audio/aiff", @".aiff",
+                               @"video/mpeg", @".mpeg",
+                               @"video/mp4", @".mp4",
+                               @"application/pdf", @".pdf",
+                               nil];
+    }
+    
+    for (NSString* extension in self.knownMimeTypes.allKeys) {
+        if ([fileName hasSuffix:extension]) {
+            mimeType = [self.knownMimeTypes stringForKey:extension];
+            break;
+        }
+    }
+    NSLog(@"fileName %@ mimeType %@", fileName, mimeType);
+    
+    NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:params constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+        [formData appendPartWithFileData:data name:@"file" fileName:fileName mimeType:mimeType];
+    }];
+    
+    AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
+        [self processBasicResponse:result success:success failure:^(NSError* error) {
+            failure(result, error);
+        }];
+    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
+        [self processBasicFailure:result error:err failure:^(NSError* error) {
+            failure(result, error);
+        }];
+    }];
+    if (progress) {
+        [operation setUploadProgressBlock:^(NSInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
+            progress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
+        }];
+    }
     [operation start];
 }
 
@@ -125,7 +183,7 @@
     NSString* width  = [NSString stringWithFormat:@"%d", (int)(size.width *scale)];
     NSString* height = [NSString stringWithFormat:@"%d", (int)(size.height*scale)];
     
-    NSString* path = [@"/data/file/show/" stringByAppendingString:identifier];
+    NSString* path = [@"/data/file/download/" stringByAppendingString:identifier];
     NSDictionary* params = [NSDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
     NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
     
@@ -183,7 +241,9 @@
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/subscribe" params:body success:^(id result) {
-        [self processBasicResponse:result success:success failure:failure];
+        [self processBasicResponse:result success:^(id result) {
+            success();
+        } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
     }];
@@ -195,26 +255,31 @@
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/unsubscribe" params:body success:^(id result) {
-        [self processBasicResponse:result success:success failure:failure];
+        [self processBasicResponse:result success:^(id result) {
+            success();
+        } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
     }];
     return YES;
 }
 
-- (void)processBasicResponse:(id)result success:(SuccessBlock)success failure:(FailureBlock)failure {
+- (void)processBasicResponse:(id)result success:(SuccessOperationBlock)success failure:(FailureBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
         failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
         return;
     }
-    
     NSString* status = [result stringForKey:@"status"];
-    if (status) {
+    if (!status) {
+        failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        return;
+    }
+    if (![status isEqualToString:@"Success"]) {
         failure([BBError errorWithStatus:status result:result]);
         return;
     }
     
-    success();
+    success(result);
 }
 
 - (void)processBasicFailure:(id)result error:(NSError*)error failure:(FailureBlock)failure {

@@ -111,6 +111,13 @@
 // upload data
 
 - (BOOL)uploadDataWithProgress:(NSData*)data
+                      fileName:fileName
+                      mimeType:mimeType
+                      progress:(ProgressDataBlock)progress
+                       success:(SuccessObjectBlock)success
+                       failure:(FailureObjectBlock)failure;
+
+- (BOOL)uploadDataWithProgress:(NSData*)data
                       progress:(ProgressDataBlock)progress
                        success:(SuccessObjectBlock)success
                        failure:(FailureObjectBlock)failure;

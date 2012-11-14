@@ -387,10 +387,52 @@
 // upload data
 
 - (BOOL)uploadDataWithProgress:(NSData*)data
+                      fileName:fileName
+                      mimeType:mimeType
                       progress:(ProgressDataBlock)progress
                        success:(SuccessObjectBlock)success
                        failure:(FailureObjectBlock)failure {
+    
+    NSString* path = nil;
+    NSString* httpMethod = nil;
+    if (self._identifier) {
+        httpMethod = @"PUT";
+        path = [@"/data/file/upload/" stringByAppendingString:self._identifier];
+    } else {
+        httpMethod = @"POST";
+        path = @"/data/file/upload";
+    }
+    
+    [self._session upload:httpMethod
+                     data:data
+                 fileName:fileName
+                 mimeType:mimeType
+                     path:path
+                   params:self._commands
+                 progress:progress success:^(id result) {
+        
+                     NSDictionary* object = [result dictionaryForKey:@"object"];
+                     if (object) {
+                         [self fillValuesWithDictionary:object andReferences:nil];
+                     }
+        success(self);
+    } failure:^(id result, NSError* error) {
+        // TODO: response message?
+        failure(self, error);
+    }];
+    
     return NO;
+}
+
+- (BOOL)uploadDataWithProgress:(NSData*)data
+                      progress:(ProgressDataBlock)progress
+                       success:(SuccessObjectBlock)success
+                       failure:(FailureObjectBlock)failure {
+    
+    NSString* fileName = @"noname.dat";
+    NSString* mimeType = @"application/octet-stream";
+    
+    return [self uploadDataWithProgress:data fileName:fileName mimeType:mimeType progress:progress success:success failure:failure];
 }
 
 - (BOOL)uploadFileWithProgress:(NSString*)path
@@ -398,21 +440,30 @@
                        success:(SuccessObjectBlock)success
                        failure:(FailureObjectBlock)failure {
     
-    return NO;
+    NSData* data = [NSData dataWithContentsOfFile:path];
+    if (!data) {
+        failure(self, [BBError errorWithStatus:@"CannotReadFile" result:nil]);
+        return NO;
+    }
+    NSString* fileName = [path lastPathComponent];
+    return [self uploadDataWithProgress:data fileName:fileName mimeType:nil progress:progress success:success failure:failure];
 }
 
 - (BOOL)uploadData:(NSData*)data
            success:(SuccessObjectBlock)success
            failure:(FailureObjectBlock)failure {
     
-    return NO;
+    NSString* fileName = @"noname.dat";
+    NSString* mimeType = @"application/octet-stream";
+    
+    return [self uploadDataWithProgress:data fileName:fileName mimeType:mimeType progress:nil success:success failure:failure];
 }
 
 - (BOOL)uploadFile:(NSString*)path
            success:(SuccessObjectBlock)success
            failure:(FailureObjectBlock)failure {
     
-    return NO;
+    return [self uploadFileWithProgress:path progress:nil success:success failure:failure];
 }
 
 // download data
@@ -423,7 +474,7 @@
     
     if (!self._identifier) { return NO; }
     
-    NSString* path = [@"/data/file/show/" stringByAppendingString:self._identifier];
+    NSString* path = [@"/data/file/download/" stringByAppendingString:self._identifier];
     [self._session downloadPath:path progress:progress success:^(NSData* data) {
         success(self, data);
     } failure:^(NSError* error) {
