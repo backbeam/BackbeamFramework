@@ -38,6 +38,8 @@
 
 @property (nonatomic, strong) NSDictionary* knownMimeTypes;
 
+@property (nonatomic, strong) SocketIO* socketio;
+
 @end
 
 @interface Backbeam ()
@@ -84,6 +86,47 @@
     NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d",
                      self.env, self.project, self.host, self.port];
     self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
+    
+//    self.socketio = [[SocketIO alloc] initWithDelegate:self];
+//    [self.socketio connectToHost:self.host onPort:self.port];
+}
+
+- (NSString*)roomName:(NSString*)room {
+    NSLog(@"room %@", [NSString stringWithFormat:@"%@/%@/%@", self.project, self.env, room]);
+    return [NSString stringWithFormat:@"%@/%@/%@", self.project, self.env, room];
+}
+
+- (void) socketIODidConnect:(SocketIO *)socket {
+    NSLog(@"socketIODidConnect");
+    [socket sendEvent:@"subscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:[self roomName:@"foo"], @"room", nil]];
+}
+
+- (void) socketIODidDisconnect:(SocketIO *)socket {
+    NSLog(@"socketIODidDisconnect");
+}
+
+- (void) socketIO:(SocketIO *)socket didReceiveMessage:(SocketIOPacket *)packet {
+    NSLog(@"didReceiveMessage %@", packet);
+}
+
+- (void) socketIO:(SocketIO *)socket didReceiveJSON:(SocketIOPacket *)packet {
+    NSLog(@"didReceiveJSON");
+}
+
+- (void) socketIO:(SocketIO *)socket didReceiveEvent:(SocketIOPacket *)packet {
+    NSLog(@"didReceiveEvent %@", packet.dataAsJSON);
+}
+
+- (void) socketIO:(SocketIO *)socket didSendMessage:(SocketIOPacket *)packet {
+    NSLog(@"didSendMessage");
+}
+
+- (void) socketIOHandshakeFailed:(SocketIO *)socket {
+    NSLog(@"socketIOHandshakeFailed");
+}
+
+- (void) socketIO:(SocketIO *)socket failedToConnectWithError:(NSError *)error {
+    NSLog(@"failedToConnectWithError");
 }
 
 - (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
@@ -401,10 +444,10 @@
 
 + (BackbeamSession*)instance {
     static BackbeamSession *inst = nil;
-    @synchronized(self){
+    @synchronized(self) {
         if (!inst) {
             inst = [[self alloc] initInstance];
-            inst.host = @"backbam.io";
+            inst.host = @"backbeam.io";
             inst.port = 80;
             inst.env  = @"dev";
         }

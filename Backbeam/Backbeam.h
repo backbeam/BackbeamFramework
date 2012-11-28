@@ -16,11 +16,12 @@
 #import "BBJoinResult.h"
 #import "BBPushNotification.h"
 #import "BBTwitterLoginViewController.h"
+#import "SocketIO.h"
 
 @class BBQuery;
 @class BBTwitterLoginViewController;
 
-@interface BackbeamSession : NSObject
+@interface BackbeamSession : NSObject  <SocketIODelegate>
 
 - (void)download:(NSMutableURLRequest*)request
         progress:(ProgressDataBlock)progress

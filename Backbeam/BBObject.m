@@ -199,15 +199,16 @@
     NSString* commandValue = [BBUtils stringFromObject:obj];
     if (!commandValue) return NO;
     
+    NSString* command = [NSString stringWithFormat:@"set-%@", key];
     [self._fields setObject:obj forKey:key];
-    [self._commands setObject:commandValue forKey:key];
+    [self._commands setObject:commandValue forKey:command];
     return YES;
 }
 
 - (BOOL)addReference:(BBObject*)object forKey:(NSString*)key {
     if (!object.identifier) return NO;
     
-    NSString* command = [NSString stringWithFormat:@"_add-%@", key];
+    NSString* command = [NSString stringWithFormat:@"add-%@", key];
     NSMutableArray* arr = [self._commands objectForKey:command];
     if (!arr) {
         arr = [NSMutableArray array];
@@ -220,7 +221,7 @@
 - (BOOL)removeReference:(BBObject*)object forKey:(NSString*)key {
     if (!object.identifier) return NO;
     
-    NSString* command = [NSString stringWithFormat:@"_rem-%@", key];
+    NSString* command = [NSString stringWithFormat:@"rem-%@", key];
     NSMutableArray* arr = [self._commands objectForKey:command];
     if (!arr) {
         arr = [NSMutableArray array];
@@ -235,8 +236,9 @@
 }
 
 - (void)removeObjectForKey:(NSString*)key {
+    NSString* command = [NSString stringWithFormat:@"set-%@", key];
     [self._fields removeObjectForKey:key];
-    [self._commands setObject:[NSNull null] forKey:key]; // TODO, not tested. REST API could change
+    [self._commands setObject:@"-" forKey:command]; // TODO, not tested. REST API could change
 }
 
 // TODO: support many increments without overriding previous command
@@ -248,7 +250,7 @@
         n = [NSNumber numberWithInteger:value];
     }
     [self._fields setObject:n forKey:key];
-    NSString* command = [NSString stringWithFormat:@"_incr-%@", key];
+    NSString* command = [NSString stringWithFormat:@"incr-%@", key];
     [self._commands setObject:[NSString stringWithFormat:@"%d", value] forKey:command];
 }
 
