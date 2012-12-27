@@ -34,6 +34,7 @@
 @property (nonatomic, strong) NSString* basePath;
 
 @property (nonatomic, strong) NSCache* cache;
+@property (nonatomic, strong) NSString* cacheDirectory;
 @property (nonatomic, strong) BBObject* _loggedUser;
 
 @property (nonatomic, strong) NSDictionary* knownMimeTypes;
@@ -69,6 +70,10 @@
         // TODO: handle error
         self.deviceToken = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
         self._loggedUser = [[BBObject alloc] initWith:self entity:@"user" file:[self userPath]];
+        
+        path = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+        path = [path stringByAppendingPathComponent:@"Caches"];
+        self.cacheDirectory = path;
     }
     return self;
 }
@@ -143,9 +148,33 @@
 
 - (void)perform:(NSString*)httpMethod
            path:(NSString*)path
-         params:(NSDictionary*)params
+         params:(NSDictionary*)_params
         success:(SuccessOperationBlock)success
         failure:(FailureOperationBlock)failure {
+    
+    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithDictionary:_params];
+    [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+    [params setObject:self.sharedKey forKey:@"key"];
+    [params setObject:[BBUtils nonce] forKey:@"nonce"];
+    
+    NSMutableString* parameterString = [[NSMutableString alloc] init];
+    NSArray* sortedKeys = [[params allKeys] sortedArrayUsingSelector:@selector(compare:)];
+    for (NSString* key in sortedKeys) {
+        id value = [params objectForKey:key];
+        if ([value isKindOfClass:[NSArray class]]) {
+            NSArray* arr = [(NSArray*)value sortedArrayUsingSelector:@selector(compare:)];
+            for (id val in arr) {
+                [parameterString appendFormat:@"&%@=%@", key, val];
+            }
+        } else {
+            [parameterString appendFormat:@"&%@=%@", key, value];
+        }
+    }
+    [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
+    
+    NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
+    NSString* signature = [hmac base64EncodedString];
+    [params setObject:signature forKey:@"signature"];
     
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {

@@ -38,7 +38,7 @@
     self._cursor = nil;
     [self._parameters removeAllObjects];
     for (id param in params) {
-        [self._parameters addObject:[BBUtils stringFromObject:param]];
+        [self._parameters addObject:[BBUtils stringFromObject:param addEntity:YES]];
     }
     self._cursor = nil;
 }
@@ -88,10 +88,6 @@
         
         success(arr);
     } failure:^(id result, NSError* error) {
-        if (error) {
-            failure([BBError errorWithError:error]);
-            return;
-        }
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
@@ -99,6 +95,10 @@
         NSString* status = [result stringForKey:@"status"];
         if (![status isEqualToString:@"Success"]) {
             failure([BBError errorWithStatus:status result:result]);
+            return;
+        }
+        if (error) {
+            failure([BBError errorWithError:error]);
             return;
         }
     }];

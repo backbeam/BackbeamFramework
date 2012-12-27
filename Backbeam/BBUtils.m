@@ -115,13 +115,17 @@
     return hmac;
 }
 
-+ (NSString*)stringFromObject:(id)obj {
++ (NSString*)stringFromObject:(id)obj addEntity:(BOOL)addEntity {
     NSString* value = nil;
     if ([obj isKindOfClass:[NSString class]]) {
         value = (NSString*)obj;
     } else if ([obj isKindOfClass:[BBObject class]]) {
         BBObject* object = (BBObject*)obj;
-        value = object.identifier;
+        if (addEntity) {
+            value = [NSString stringWithFormat:@"%@/%@", object.entity, object.identifier];
+        } else {
+            value = object.identifier;
+        }
     } else if ([obj isKindOfClass:[NSDate class]]) {
         NSDate* date = (NSDate*)obj;
         value = [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970]*1000)];
@@ -132,6 +136,14 @@
                         location.altitude, location.address];
     }
     return value;
+}
+
++ (NSString*)nonce {
+    NSTimeInterval time = [[NSDate date] timeIntervalSince1970];
+    int random = arc4random() % 1000;
+    NSData* data = [[NSString stringWithFormat:@"%f:%d", time, random] dataUsingEncoding:NSUTF8StringEncoding];
+    NSData* output = [BBUtils sha1:data];
+    return [BBUtils hexString:output];
 }
 
 @end

@@ -70,7 +70,7 @@
     
     NSMutableDictionary* authorization = [[NSMutableDictionary alloc] initWithCapacity:8];
     [authorization setObject:self.twitterConsumerKey forKey:@"oauth_consumer_key"];
-    [authorization setObject:[self nonce] forKey:@"oauth_nonce"];
+    [authorization setObject:[BBUtils nonce] forKey:@"oauth_nonce"];
     [authorization setObject:@"HMAC-SHA1" forKey:@"oauth_signature_method"];
     [authorization setObject:[self timestamp] forKey:@"oauth_timestamp"];
     [authorization setObject:@"1.0" forKey:@"oauth_version"];
@@ -130,14 +130,6 @@
     }
     [request setURL:[NSURL URLWithString:url]];
     return request;
-}
-
-- (NSString*)nonce {
-    NSTimeInterval time = [[NSDate date] timeIntervalSince1970];
-    int random = arc4random() % 1000;
-    NSData* data = [[NSString stringWithFormat:@"%f:%d", time, random] dataUsingEncoding:NSUTF8StringEncoding];
-    NSData* output = [BBUtils sha1:data];
-    return [BBUtils hexString:output];
 }
 
 - (NSString*)timestamp {

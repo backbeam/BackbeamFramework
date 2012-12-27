@@ -196,7 +196,7 @@
 }
 
 - (BOOL)setObject:(id)obj forKey:(NSString*)key {
-    NSString* commandValue = [BBUtils stringFromObject:obj];
+    NSString* commandValue = [BBUtils stringFromObject:obj addEntity:NO];
     if (!commandValue) return NO;
     
     NSString* command = [NSString stringWithFormat:@"set-%@", key];

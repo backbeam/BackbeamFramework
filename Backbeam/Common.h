@@ -10,6 +10,11 @@
 @class BBUser;
 @class BBError;
 
+#define kFetchPolicyLocalOnly      1
+#define kFetchPolicyRemoteOnly     2
+#define kFetchPolicyLocalAndRemote 3
+#define kFetchPolicyLocalOrRemote  4
+
 // internal use
 typedef void(^SuccessOperationBlock)(id result);
 typedef void(^FailureOperationBlock)(id result, NSError* err);
