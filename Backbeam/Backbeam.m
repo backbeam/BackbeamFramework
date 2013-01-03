@@ -246,6 +246,7 @@
 }
 
 - (UIImage*)image:(NSString*)identifier
+          version:(NSNumber*)version
          withSize:(CGSize)size
          progress:(ProgressDataBlock)progress
           success:(SuccessImageBlock)success
@@ -255,7 +256,7 @@
     NSString* width  = [NSString stringWithFormat:@"%d", (int)(size.width *scale)];
     NSString* height = [NSString stringWithFormat:@"%d", (int)(size.height*scale)];
     
-    NSString* path = [@"/data/file/download/" stringByAppendingString:identifier];
+    NSString* path = [NSString stringWithFormat:@"/data/file/download/%@/%@", identifier, version];
     NSDictionary* params = [NSDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
     NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
     

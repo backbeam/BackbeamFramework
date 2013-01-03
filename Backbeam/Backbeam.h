@@ -44,6 +44,7 @@
        failure:(FailureOperationBlock)failure;
 
 - (UIImage*)image:(NSString*)identifier
+          version:(NSNumber*)version
          withSize:(CGSize)size
          progress:(ProgressDataBlock)progress
           success:(SuccessImageBlock)success

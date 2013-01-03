@@ -361,7 +361,8 @@
 - (UIImage*)imageWithSize:(CGSize)size
                   success:(SuccessImageBlock)success {
     
-    return [self._session image:self._identifier withSize:size progress:nil success:success failure:^(NSError* error) {
+    NSNumber* version = [self numberForKey:@"version"];
+    return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         // ignore
     }];
 }
@@ -370,7 +371,8 @@
                   success:(SuccessImageBlock)success
                   failure:(FailureObjectBlock)failure {
     
-    return [self._session image:self._identifier withSize:size progress:nil success:success failure:^(NSError* error) {
+    NSNumber* version = [self numberForKey:@"version"];
+    return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         failure(self, error);
     }];
 }
@@ -381,7 +383,8 @@
                   success:(SuccessImageBlock)success
                   failure:(FailureObjectBlock)failure {
     
-    return [self._session image:self._identifier withSize:size progress:progress success:success failure:^(NSError* error) {
+    NSNumber* version = [self numberForKey:@"version"];
+    return [self._session image:self._identifier version:version withSize:size progress:progress success:success failure:^(NSError* error) {
         failure(self, error);
     }];
 }
@@ -475,8 +478,10 @@
                          failure:(FailureObjectBlock)failure {
     
     if (!self._identifier) { return NO; }
+    NSNumber* version = [self numberForKey:@"version"];
+    if (!version) { return NO; }
     
-    NSString* path = [@"/data/file/download/" stringByAppendingString:self._identifier];
+    NSString* path = [NSString stringWithFormat:@"/data/file/download/%@/%@", self._identifier, version];
     [self._session downloadPath:path progress:progress success:^(NSData* data) {
         success(self, data);
     } failure:^(NSError* error) {
