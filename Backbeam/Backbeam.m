@@ -445,7 +445,8 @@
         [[NSFileManager defaultManager] removeItemAtPath:[self userPath] error:nil]; // TODO: handle error
     } else {
         NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:authCode, @"auth", user, @"user", nil];
-        [NSKeyedArchiver archiveRootObject:dict toFile:[self userPath]];
+        NSData* data = [NSKeyedArchiver archivedDataWithRootObject:dict];
+        [data writeToFile:[self userPath] options:NSDataWritingAtomic|NSDataWritingFileProtectionComplete error:nil];
     }
 }
 
