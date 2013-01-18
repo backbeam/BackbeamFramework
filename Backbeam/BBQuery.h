@@ -17,6 +17,8 @@
 - (id)initWith:(BackbeamSession*)session
         entity:(NSString*)entity;
 
+- (void)setQuery:(NSString*)query;
+
 - (void)setQuery:(NSString*)query
       withParams:(NSArray*)params;
 
@@ -26,5 +28,7 @@
       failure:(FailureQueryBlock)failure;
 
 - (void)next:(NSInteger)limit;
+
+- (void)setFetchPolicy:(BBFetchPolicy)fetchPolicy;
 
 @end

@@ -15,7 +15,7 @@
 @class BBJoinResult;
 @class BackbeamSession;
 
-@interface BBObject : NSObject
+@interface BBObject : NSObject <NSCoding>
 
 // constructors
 
@@ -35,11 +35,7 @@
     references:(NSDictionary *)references
     identifier:(NSString*)identifier;
 
-- (id)initWith:(BackbeamSession*)session
-        entity:(NSString*)entity
-          file:(NSString*)path;
-
-- (BOOL)saveToFile:(NSString*)path;
+- (void)setSession:(BackbeamSession*)session;
 
 // methods for reading default fields
 
@@ -144,6 +140,12 @@
 - (BOOL)downloadData:(SuccessDownloadBlock)success
              failure:(FailureObjectBlock)failure;
 
-// TODO: methods for users
+// helper methods
+
+- (BOOL)isEmpty;
+
+- (BOOL)idDirty;
+
+- (BOOL)isNew;
 
 @end

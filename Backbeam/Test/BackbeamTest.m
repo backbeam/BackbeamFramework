@@ -26,7 +26,7 @@
     
     [self test:@"Test empty query" done:^(DoneBlock done) {
         BBQuery* query = [Backbeam queryForEntity:@"place"];
-        [query fetch:100 offset:0 success:^(NSArray* objects) {
+        [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount) {
             assertOk(objects.count == 0);
             done();
         } failure:^(NSError* error) {
@@ -96,7 +96,7 @@
     [self test:@"Query with BQL and params" done:^(DoneBlock done) {
         BBQuery* query = [Backbeam queryForEntity:@"place"];
         [query setQuery:@"where type=?" withParams:[NSArray arrayWithObject:@"Terraza"]];
-        [query fetch:100 offset:0 success:^(NSArray* objects) {
+        [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount) {
             assertOk(objects.count == 1);
             BBObject* object = [objects objectAtIndex:0];
             assertEqual([object stringForKey:@"name"], @"Final name");
@@ -145,19 +145,19 @@
         [object setObject:@"123456" forKey:@"password"];
         // TODO: set a name
         [object save:^(BBObject* object) {
-            assertOk([Backbeam loggedUser]);
-            assertEqual([Backbeam loggedUser].identifier, object.identifier);
-            assertEqual([[Backbeam loggedUser] stringForKey:@"email"], [object stringForKey:@"email"]);
-            assertNotOk([[Backbeam loggedUser] stringForKey:@"password"]);
+            assertOk([Backbeam currentUser]);
+            assertEqual([Backbeam currentUser].identifier, object.identifier);
+            assertEqual([[Backbeam currentUser] stringForKey:@"email"], [object stringForKey:@"email"]);
+            assertNotOk([[Backbeam currentUser] stringForKey:@"password"]);
             assertNotOk([object stringForKey:@"password"]);
             
             [Backbeam logout];
-            assertNotOk([Backbeam loggedUser]);
+            assertNotOk([Backbeam currentUser]);
             [Backbeam loginWithEmail:@"gimenete@gmail.com" password:@"123456" success:^(BBObject* object) {
-                assertOk([Backbeam loggedUser]);
-                assertEqual([Backbeam loggedUser].identifier, object.identifier);
-                assertEqual([[Backbeam loggedUser] stringForKey:@"email"], [object stringForKey:@"email"]);
-                assertNotOk([[Backbeam loggedUser] stringForKey:@"password"]);
+                assertOk([Backbeam currentUser]);
+                assertEqual([Backbeam currentUser].identifier, object.identifier);
+                assertEqual([[Backbeam currentUser] stringForKey:@"email"], [object stringForKey:@"email"]);
+                assertNotOk([[Backbeam currentUser] stringForKey:@"password"]);
                 assertNotOk([object stringForKey:@"password"]);
                 
                 done();

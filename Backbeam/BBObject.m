@@ -24,6 +24,18 @@
 
 @implementation BBObject
 
+- (id)initWithCoder:(NSCoder *)decoder
+{
+    self = [super init];
+    if (self) {
+        self._entity = [decoder decodeObjectForKey:@"entity"];
+        self._identifier = [decoder decodeObjectForKey:@"id"];
+        self._fields = [decoder decodeObjectForKey:@"fields"];
+        self._commands = [[NSMutableDictionary alloc] init];
+    }
+    return self;
+}
+
 - (id)initWith:(BackbeamSession*)session entity:(NSString*)entity
 {
     self = [super init];
@@ -63,26 +75,22 @@
     return self;
 }
 
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity file:(NSString*)path
-{
-    self = [super init];
-    if (self) {
-        NSDictionary* dict = [NSKeyedUnarchiver unarchiveObjectWithFile:path];
-        if (!dict) {
-            return nil;
-        }
-        self._entity = entity;
-        self._fields = [NSMutableDictionary dictionaryWithDictionary:[dict dictionaryForKey:@"fields"]];
-        self._identifier = [dict stringForKey:@"id"];
-        self._commands = [[NSMutableDictionary alloc] init];
-        self._session = session;
-    }
-    return self;
+- (void)encodeWithCoder:(NSCoder *)coder {
+    [coder encodeObject:self._entity forKey:@"entity"];
+    [coder encodeObject:self._identifier forKey:@"id"];
+    [coder encodeObject:self._fields forKey:@"fields"];
 }
 
-- (BOOL)saveToFile:(NSString*)path {
-    NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:self._identifier, @"id", self._fields, @"fields", nil];
-    return [NSKeyedArchiver archiveRootObject:dict toFile:path];
+- (void)setSession:(BackbeamSession*)session {
+    self._session = session;
+    for (NSString* key in self._fields) {
+        id value = [self._fields objectForKey:key];
+        if ([value isKindOfClass:[BBObject class]]) {
+            BBObject* obj = (BBObject*)value;
+            [obj setSession:session];
+        }
+        // TODO: JoinResults?
+    }
 }
 
 - (void)fillValuesWithDictionary:(NSDictionary*)dict andReferences:(NSDictionary*)references {
@@ -107,18 +115,25 @@
                     value = [NSDate dateWithTimeIntervalSince1970:n.doubleValue/1000];
                 } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSDictionary class]]) {
                     NSDictionary* dict = (NSDictionary*)value;
-                    BBJoinResult* result = [[BBJoinResult alloc] init];
-                    result.count = [dict numberForKey:@"count"].integerValue;
-                    NSArray* arr = [dict arrayForKey:@"result"];
-                    NSMutableArray* refs = [[NSMutableArray alloc] initWithCapacity:arr.count];
-                    for (NSString* identifier in arr) {
-                        NSDictionary* obj = [references objectForKey:identifier];
-                        if (obj) { // sanity check
-                            [refs addObject:obj];
+                    NSString* _id = [dict stringForKey:@"id"];
+                    NSString* _type = [dict stringForKey:@"type"];
+                    if (_id && _type) {
+                        BBObject* obj = [Backbeam emptyObjectForEntity:_type withIdentifier:_id];
+                        value = obj;
+                    } else {
+                        BBJoinResult* result = [[BBJoinResult alloc] init];
+                        result.count = [dict numberForKey:@"count"].integerValue;
+                        NSArray* arr = [dict arrayForKey:@"result"];
+                        NSMutableArray* refs = [[NSMutableArray alloc] initWithCapacity:arr.count];
+                        for (NSString* identifier in arr) {
+                            NSDictionary* obj = [references objectForKey:identifier];
+                            if (obj) { // sanity check
+                                [refs addObject:obj];
+                            }
                         }
+                        result.objects = refs;
+                        value = result;
                     }
-                    result.objects = refs;
-                    value = result;
                 } else if ([type isEqualToString:@"r"] && [value isKindOfClass:[NSString class]]) {
                     value = [references objectForKey:value];
                 } else if ([type isEqualToString:@"l"] && [value isKindOfClass:[NSDictionary class]]) {
@@ -261,6 +276,7 @@
     }
     
     NSString* status     = [result stringForKey:@"status"];
+    NSString* authCode   = [result stringForKey:@"auth"];
     NSDictionary* object = [result dictionaryForKey:@"object"];
     
     if (!status || !object) {
@@ -274,7 +290,7 @@
     }
     
     [self fillValuesWithDictionary:object andReferences:nil];
-    success(status, self);
+    success(status, self, authCode);
 }
 
 - (void)processResponse:(id)result error:(NSError*)err failure:(FailureObjectBlock)failure {
@@ -305,16 +321,16 @@
         path = [NSString stringWithFormat:@"/data/%@", self._entity];
     }
     
-    [self._session perform:method path:path params:self._commands success:^(id result) {
-        // [self._commands removeAllObjects];
-        [self processResponse:result success:^(NSString* status, BBObject* object) {
+    [self._session perform:method path:path params:self._commands fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        [self._commands removeAllObjects];
+        [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             if ([self.entity isEqualToString:@"user"]) {
                 [self._fields removeObjectForKey:@"password"];
             }
             if ([self.entity isEqualToString:@"user"] && [method isEqualToString:@"POST"]) {
                 [Backbeam logout]; // logout previous user
                 if ([status isEqualToString:@"Success"]) { // not PendingValidation
-                    [self._session setLoggedUser:self];
+                    [self._session setCurrentUser:self withAuthCode:authCode];
                 }
             }
             success(object);
@@ -329,8 +345,8 @@
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
-    [self._session perform:@"DELETE" path:path params:nil success:^(id result) {
-        [self processResponse:result success:^(NSString* status, BBObject* object) {
+    [self._session perform:@"DELETE" path:path params:nil fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             // TODO: if (is current user) logout; return;
             success(self);
         } failure:failure];
@@ -343,9 +359,9 @@
 - (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
-    
-    [self._session perform:@"GET" path:path params:nil success:^(id result) {
-        [self processResponse:result success:^(NSString* status, BBObject* object) {
+    NSLog(@"path %@, %@", path, self._session);
+    [self._session perform:@"GET" path:path params:nil fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             success(object);
         } failure:failure];
     } failure:^(id result, NSError* err) {
@@ -364,6 +380,7 @@
     NSNumber* version = [self numberForKey:@"version"];
     return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         // ignore
+        NSLog(@"error %@", error);
     }];
 }
 
@@ -415,7 +432,6 @@
                      path:path
                    params:self._commands
                  progress:progress success:^(id result) {
-        
                      NSDictionary* object = [result dictionaryForKey:@"object"];
                      if (object) {
                          [self fillValuesWithDictionary:object andReferences:nil];
@@ -494,6 +510,20 @@
              failure:(FailureObjectBlock)failure {
     
     return [self downloadDataWithProgress:nil success:success failure:failure];
+}
+
+// helper methods
+
+- (BOOL)isEmpty {
+    return self._createdAt == nil;
+}
+
+- (BOOL)idDirty {
+    return self._commands.count > 0;
+}
+
+- (BOOL)isNew {
+    return self._identifier == nil;
 }
 
 @end

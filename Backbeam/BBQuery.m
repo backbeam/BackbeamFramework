@@ -16,6 +16,7 @@
 @property (nonatomic, strong) NSString* _entity;
 @property (nonatomic, strong) NSString* _query;
 @property (nonatomic, strong) NSMutableArray* _parameters;
+@property (nonatomic, assign) BBFetchPolicy _fetchPolicy;
 @property (nonatomic, strong) BackbeamSession* _session;
 
 @end
@@ -29,8 +30,13 @@
         self._session = session;
         self._entity = entity;
         self._parameters = [[NSMutableArray alloc] init];
+        self._fetchPolicy = BBFetchPolicyRemoteOnly;
     }
     return self;
+}
+
+- (void)setQuery:(NSString*)query {
+    [self setQuery:query withParams:nil];
 }
 
 - (void)setQuery:(NSString*)query withParams:(NSArray*)params {
@@ -41,6 +47,10 @@
         [self._parameters addObject:[BBUtils stringFromObject:param addEntity:YES]];
     }
     self._cursor = nil;
+}
+
+- (void)setFetchPolicy:(BBFetchPolicy)fetchPolicy {
+    self._fetchPolicy = fetchPolicy;
 }
 
 - (void)fetch:(NSInteger)limit offset:(NSInteger)offset success:(SuccessQueryBlock)success failure:(FailureQueryBlock)failure {
@@ -55,7 +65,7 @@
     [params setObject:[NSString stringWithFormat:@"%d", limit]  forKey:@"limit"];
     [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
     
-    [self._session perform:@"GET" path:path params:params success:^(id result) {
+    [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
@@ -85,9 +95,14 @@
             BBObject* obj = [[BBObject alloc] initWith:self._session entity:self._entity dictionary:dict references:refs identifier:nil];
             [arr addObject:obj];
         }
+        NSNumber* totalCount = [result numberForKey:@"count"];
         
-        success(arr);
+        success(arr, totalCount.integerValue);
     } failure:^(id result, NSError* error) {
+        if (error) {
+            failure(error);
+            return;
+        }
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
@@ -95,10 +110,6 @@
         NSString* status = [result stringForKey:@"status"];
         if (![status isEqualToString:@"Success"]) {
             failure([BBError errorWithStatus:status result:result]);
-            return;
-        }
-        if (error) {
-            failure([BBError errorWithError:error]);
             return;
         }
     }];

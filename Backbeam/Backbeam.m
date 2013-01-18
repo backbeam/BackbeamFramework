@@ -14,6 +14,9 @@
 #import "BBPushNotification.h"
 #import "BBError.h"
 #import "BBQuery.h"
+#import "BBCache.h"
+#import "JSONKit.h"
+#import "BBError.h"
 
 @interface BackbeamSession ()
 
@@ -26,6 +29,7 @@
 @property (nonatomic, strong) NSString* env;
 @property (nonatomic, strong) NSString* sharedKey;
 @property (nonatomic, strong) NSString* secretKey;
+@property (nonatomic, strong) NSString* authCode;
 
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
@@ -33,9 +37,10 @@
 @property (nonatomic, strong) NSString* deviceToken;
 @property (nonatomic, strong) NSString* basePath;
 
-@property (nonatomic, strong) NSCache* cache;
+@property (nonatomic, strong) NSCache* imageCache;
+@property (nonatomic, strong) BBCache* queryCache;
 @property (nonatomic, strong) NSString* cacheDirectory;
-@property (nonatomic, strong) BBObject* _loggedUser;
+@property (nonatomic, strong) BBObject* _currentUser;
 
 @property (nonatomic, strong) NSDictionary* knownMimeTypes;
 
@@ -59,7 +64,7 @@
 {
     self = [super init];
     if (self) {
-        self.cache = [[NSCache alloc] init];
+        self.imageCache = [[NSCache alloc] init];
         NSString* path = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
         path = [path stringByAppendingPathComponent:@"Private Documents"];
         path = [path stringByAppendingPathComponent:@"Backbeam"];
@@ -69,11 +74,22 @@
         path = [self.basePath stringByAppendingPathComponent:kDeviceTokenPathComponent];
         // TODO: handle error
         self.deviceToken = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
-        self._loggedUser = [[BBObject alloc] initWith:self entity:@"user" file:[self userPath]];
+        
+        NSDictionary* dict = [NSKeyedUnarchiver unarchiveObjectWithFile:[self userPath]];
+        if (dict) {
+            self.authCode = [dict stringForKey:@"auth"];
+            self._currentUser = [dict objectForKey:@"user"];
+            [self._currentUser setSession:self];
+        }
         
         path = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
         path = [path stringByAppendingPathComponent:@"Caches"];
         self.cacheDirectory = path;
+        
+        NSString* cachePath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+        cachePath = [cachePath stringByAppendingPathComponent:@"Caches"];
+        self.queryCache = [[BBCache alloc] initWithDirectory:path maxSize:1024*1024*10];
+
     }
     return self;
 }
@@ -149,15 +165,18 @@
 - (void)perform:(NSString*)httpMethod
            path:(NSString*)path
          params:(NSDictionary*)_params
+    fetchPolicy:(BBFetchPolicy)fetchPolicy
         success:(SuccessOperationBlock)success
         failure:(FailureOperationBlock)failure {
     
     NSMutableDictionary* params = [NSMutableDictionary dictionaryWithDictionary:_params];
-    [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
-    [params setObject:self.sharedKey forKey:@"key"];
     [params setObject:[BBUtils nonce] forKey:@"nonce"];
+    [params setObject:self.sharedKey forKey:@"key"];
+    [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
     
     NSMutableString* parameterString = [[NSMutableString alloc] init];
+    NSMutableString* cacheKeyString = [[NSMutableString alloc] initWithString:httpMethod]; // only GET requests should be cached
+    [cacheKeyString appendString:path];
     NSArray* sortedKeys = [[params allKeys] sortedArrayUsingSelector:@selector(compare:)];
     for (NSString* key in sortedKeys) {
         id value = [params objectForKey:key];
@@ -165,20 +184,55 @@
             NSArray* arr = [(NSArray*)value sortedArrayUsingSelector:@selector(compare:)];
             for (id val in arr) {
                 [parameterString appendFormat:@"&%@=%@", key, val];
+                [cacheKeyString appendFormat:@"&%@=%@", key, val];
             }
         } else {
             [parameterString appendFormat:@"&%@=%@", key, value];
+            if (![key isEqualToString:@"time"] && ![key isEqualToString:@"nonce"]) {
+                [cacheKeyString appendFormat:@"&%@=%@", key, value];
+            }
         }
     }
     [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
+    
+    NSString* cacheKey = nil;
+    BOOL useCache    = fetchPolicy == BBFetchPolicyLocalOnly
+                    || fetchPolicy == BBFetchPolicyLocalAndRemote
+                    || fetchPolicy == BBFetchPolicyLocalOrRemote;
+    if (useCache) {
+        cacheKey = [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
+        NSData* data = [self.queryCache read:cacheKey];
+        BOOL read = NO;
+        if (data) {
+            id result = [[[JSONDecoder alloc] init] objectWithData:data];
+            if (result) {
+                read = YES;
+                success(result, YES);
+                if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
+                    return;
+                }
+            }
+        }
+        if (fetchPolicy == BBFetchPolicyLocalOnly) {
+            if (!read) {
+                // TODO: failure
+            }
+            return;
+        }
+    }
     
     NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
     NSString* signature = [hmac base64EncodedString];
     [params setObject:signature forKey:@"signature"];
     
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
-    AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
-        success(result);
+    __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
+        success(result, NO);
+        
+        if (useCache) {
+            [self.queryCache write:operation.responseData withKey:cacheKey];
+        }
+        
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
         failure(result, err);
     }];
@@ -192,7 +246,7 @@
           path:(NSString*)path
         params:(NSDictionary*)params
       progress:(ProgressDataBlock)progress
-       success:(SuccessOperationBlock)success
+       success:(SuccessBlock)success
        failure:(FailureOperationBlock)failure {
 
     if (!mimeType) {
@@ -238,7 +292,7 @@
         }];
     }];
     if (progress) {
-        [operation setUploadProgressBlock:^(NSInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
+        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
             progress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
         }];
     }
@@ -261,14 +315,14 @@
     NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
     
     NSString* url = [req.URL description];
-    UIImage* img = [self.cache objectForKey:url];
+    UIImage* img = [self.imageCache objectForKey:url];
     if (img) return img;
     
     [self download:req progress:progress success:^(NSData* data) {
         UIImage* img = [UIImage imageWithData:data scale:scale];
         // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
         if (img) {
-            [self.cache setObject:img forKey:url];
+            [self.imageCache setObject:img forKey:url];
             success(img);
         } else {
             failure([BBError errorWithStatus:@"InvalidImage" result:nil]);
@@ -285,7 +339,7 @@
 - (void)download:(NSMutableURLRequest*)req progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {
     AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
     if (progress) {
-        [operation setDownloadProgressBlock:^(NSInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
+        [operation setDownloadProgressBlock:^(NSUInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
             progress(bytesRead, totalBytesRead, totalBytesExpectedToRead);
         }];
     }
@@ -313,7 +367,7 @@
     if (!self.deviceToken) { return NO; }
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
-    [self perform:@"POST" path:@"/push/subscribe" params:body success:^(id result) {
+    [self perform:@"POST" path:@"/push/subscribe" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processBasicResponse:result success:^(id result) {
             success();
         } failure:failure];
@@ -327,7 +381,7 @@
     if (!self.deviceToken) return NO;
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
-    [self perform:@"POST" path:@"/push/unsubscribe" params:body success:^(id result) {
+    [self perform:@"POST" path:@"/push/unsubscribe" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processBasicResponse:result success:^(id result) {
             success();
         } failure:failure];
@@ -337,7 +391,7 @@
     return YES;
 }
 
-- (void)processBasicResponse:(id)result success:(SuccessOperationBlock)success failure:(FailureBlock)failure {
+- (void)processBasicResponse:(id)result success:(SuccessBlock)success failure:(FailureBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
         failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
         return;
@@ -378,24 +432,25 @@
     if (notification.sound) { [body setObject:notification.sound forKey:@"apn_sound"]; }
     // TODO: apn_payload = notification.extra
     
-    [self perform:@"POST" path:@"/push/send" params:body success:^(id result) {
+    [self perform:@"POST" path:@"/push/send" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processBasicResponse:result success:success failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
     }];
 }
 
-- (void)setLoggedUser:(BBObject*)user {
-    self._loggedUser = user;
+- (void)setCurrentUser:(BBObject*)user withAuthCode:(NSString*)authCode {
+    self._currentUser = user;
     if (user == nil) {
         [[NSFileManager defaultManager] removeItemAtPath:[self userPath] error:nil]; // TODO: handle error
     } else {
-        [user saveToFile:[self userPath]];
+        NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:authCode, @"auth", user, @"user", nil];
+        [NSKeyedArchiver archiveRootObject:dict toFile:[self userPath]];
     }
 }
 
 - (void)logout {
-    [self setLoggedUser:nil];
+    [self setCurrentUser:nil withAuthCode:nil];
 }
 
 - (NSString*)userPath {
@@ -407,7 +462,7 @@
     [body setObject:email forKey:@"email"];
     [body setObject:password forKey:@"password"];
     
-    [self perform:@"POST" path:@"/user/email/login" params:body success:^(id result) {
+    [self perform:@"POST" path:@"/user/email/login" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
@@ -426,9 +481,10 @@
         
         BBObject* user = nil;
         NSDictionary* object = [result dictionaryForKey:@"object"];
-        if (object) {
+        NSString* auth = [result stringForKey:@"auth"];
+        if (object && auth) {
             user = [[BBObject alloc] initWith:self entity:@"user" dictionary:object references:nil identifier:nil];
-            [self setLoggedUser:user];
+            [self setCurrentUser:user withAuthCode:auth];
         }
         success(user);
     } failure:^(id result, NSError* error) {
@@ -438,7 +494,7 @@
 
 - (void)requestPasswordResetWithEmail:(NSString*)email success:(SuccessBlock)success failure:(FailureBlock)failure {
     NSDictionary* body = [NSDictionary dictionaryWithObject:email forKey:@"email"];
-    [self perform:@"POST" path:@"/user/email/lostpassword" params:body success:^(id result) {
+    [self perform:@"POST" path:@"/user/email/lostpassword" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
@@ -533,14 +589,15 @@
     [[BackbeamSession instance] sendPushNotification:notification toChannel:channel success:^{} failure:^(NSError* err){}];
 }
 
-+ (BBObject*)loggedUser {
-    return [BackbeamSession instance]._loggedUser;
++ (BBObject*)currentUser {
+    return [BackbeamSession instance]._currentUser;
 }
 
 + (void)logout {
     [[BackbeamSession instance] logout];
 }
 
+// TODO: login with joins. JoinResult should implemente NSCoding
 + (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
     [[BackbeamSession instance] loginWithEmail:email password:password success:success failure:failure];
 }

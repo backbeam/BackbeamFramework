@@ -10,15 +10,17 @@
 @class BBUser;
 @class BBError;
 
-#define kFetchPolicyLocalOnly      1
-#define kFetchPolicyRemoteOnly     2
-#define kFetchPolicyLocalAndRemote 3
-#define kFetchPolicyLocalOrRemote  4
+typedef enum {
+    BBFetchPolicyRemoteOnly,
+    BBFetchPolicyLocalOnly,
+    BBFetchPolicyLocalAndRemote,
+    BBFetchPolicyLocalOrRemote
+} BBFetchPolicy;
 
 // internal use
-typedef void(^SuccessOperationBlock)(id result);
+typedef void(^SuccessOperationBlock)(id result, BOOL fromCache);
 typedef void(^FailureOperationBlock)(id result, NSError* err);
-typedef void(^SuccessOperationObjectBlock)(NSString* status, BBObject* object);
+typedef void(^SuccessOperationObjectBlock)(NSString* status, BBObject* object, NSString* authCode);
 typedef void(^SuccessDataBlock)(NSData* data);
 typedef void(^ProgressDataBlock)(NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
 
@@ -28,7 +30,7 @@ typedef void(^FailureBlock)(NSError* err);
 
 typedef void(^SuccessImageBlock)(UIImage* img);
 
-typedef void(^SuccessQueryBlock)(NSArray* objects);
+typedef void(^SuccessQueryBlock)(NSArray* objects, NSInteger totalCount);
 typedef void(^FailureQueryBlock)(NSError* err);
 
 typedef void(^SuccessObjectBlock)(BBObject* object);

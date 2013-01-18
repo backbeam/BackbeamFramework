@@ -40,7 +40,7 @@
           path:(NSString*)path
         params:(NSDictionary*)params
       progress:(ProgressDataBlock)progress
-       success:(SuccessOperationBlock)success
+       success:(SuccessBlock)success
        failure:(FailureOperationBlock)failure;
 
 - (UIImage*)image:(NSString*)identifier
@@ -50,13 +50,14 @@
           success:(SuccessImageBlock)success
           failure:(FailureBlock)failure;
 
-- (void)setLoggedUser:(BBObject*)user;
+- (void)setCurrentUser:(BBObject*)user withAuthCode:(NSString*)code;
 
 - (void)persistDeviceToken:(NSData*)data;
 
 - (void)perform:(NSString*)httpMethod
            path:(NSString*)path
-         params:(NSDictionary*)params
+         params:(NSDictionary*)_params
+    fetchPolicy:(BBFetchPolicy)fetchPolicy
         success:(SuccessOperationBlock)success
         failure:(FailureOperationBlock)failure;
 
@@ -103,7 +104,7 @@
 + (void)sendPushNotification:(BBPushNotification*)notification
                    toChannel:(NSString*)channel;
 
-+ (BBObject*)loggedUser;
++ (BBObject*)currentUser;
 
 + (void)logout;
 

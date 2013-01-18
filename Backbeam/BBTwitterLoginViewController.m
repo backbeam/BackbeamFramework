@@ -177,7 +177,7 @@
                     
                     NSDictionary* postParams = [NSDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
                                                 oauthTokenSecret, @"oauth_token_secret", nil];
-                    [self._session perform:@"POST" path:@"/user/twitter/signup" params:postParams success:^(id result) {
+                    [self._session perform:@"POST" path:@"/user/twitter/signup" params:postParams fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
                         NSDictionary* dict = result;
                         BBObject* obj = [[BBObject alloc] initWith:self._session entity:@"user" dictionary:dict references:nil identifier:nil];
                         NSDictionary* extraInfo = [NSDictionary dictionaryWithObjectsAndKeys:userId, @"twitter_user_id",

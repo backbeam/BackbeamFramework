@@ -46,6 +46,7 @@
 }
 
 - (NSData*)read:(NSString*)key {
+    key = [@"_" stringByAppendingString:key];
     __block NSData* data = nil;
     dispatch_sync(metaQueue, ^{
         NSMutableDictionary* info = [self.objects objectForKey:key];
@@ -62,6 +63,7 @@
 }
 
 - (void)write:(NSData*)data withKey:(NSString*)key {
+    key = [@"_" stringByAppendingString:key];
     dispatch_sync(metaQueue, ^{
         unsigned long long int currentSize = 0;
         for (NSDictionary* dict in self.objects.allValues) {
