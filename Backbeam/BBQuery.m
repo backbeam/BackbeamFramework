@@ -75,16 +75,7 @@
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
         }
-        NSMutableDictionary* refs = [[NSMutableDictionary alloc] initWithCapacity:references.count];
-        if (references) {
-            for (NSString* identifier in references) {
-                NSDictionary* object = [references objectForKey:identifier];
-                NSString* type = [object objectForKey:@"_type"];
-                BBObject* obj = [[BBObject alloc] initWith:self._session entity:type dictionary:object references:nil identifier:identifier];
-                [refs setObject:obj forKey:identifier];
-            }
-        }
-        
+        NSMutableDictionary* refs = [BBObject objectsWithSession:self._session fromReferences:references];
         NSArray* objects = [result arrayForKey:@"objects"];
         if (!objects) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);

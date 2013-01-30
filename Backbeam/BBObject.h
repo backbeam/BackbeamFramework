@@ -35,6 +35,8 @@
     references:(NSDictionary *)references
     identifier:(NSString*)identifier;
 
++ (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session fromReferences:(NSDictionary*)references;
+
 - (void)setSession:(BackbeamSession*)session;
 
 // methods for reading default fields

@@ -75,6 +75,26 @@
     return self;
 }
 
++ (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session fromReferences:(NSDictionary*)references {
+    NSMutableDictionary* refs = [[NSMutableDictionary alloc] initWithCapacity:references.count];
+    if (references) {
+        for (NSString* identifier in references) {
+            NSDictionary* object = [references objectForKey:identifier];
+            NSString* type = [object objectForKey:@"_type"];
+            BBObject* obj = [[BBObject alloc] initWith:session entity:type identifier:identifier];
+            [refs setObject:obj forKey:identifier];
+        }
+        
+        for (NSString* identifier in references) {
+            BBObject* obj = [refs objectForKey:identifier];
+            
+            NSDictionary* values = [references objectForKey:identifier];
+            [obj fillValuesWithDictionary:values andReferences:refs];
+        }
+    }
+    return refs;
+}
+
 - (void)encodeWithCoder:(NSCoder *)coder {
     [coder encodeObject:self._entity forKey:@"entity"];
     [coder encodeObject:self._identifier forKey:@"id"];
@@ -359,7 +379,6 @@
 - (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
     if (!self._entity || !self._identifier) { return NO; }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
-    NSLog(@"path %@, %@", path, self._session);
     [self._session perform:@"GET" path:path params:nil fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             success(object);
