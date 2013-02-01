@@ -481,10 +481,12 @@
         }
         
         BBObject* user = nil;
-        NSDictionary* object = [result dictionaryForKey:@"object"];
+        NSDictionary* values = [result dictionaryForKey:@"objects"];
+        NSString* identifier = [result stringForKey:@"id"];
         NSString* auth = [result stringForKey:@"auth"];
-        if (object && auth) {
-            user = [[BBObject alloc] initWith:self entity:@"user" dictionary:object references:nil identifier:nil];
+        if (values && identifier && auth) {
+            NSMutableDictionary* refs = [BBObject objectsWithSession:self values:values references:nil];
+            user = [refs objectForKey:identifier];
             [self setCurrentUser:user withAuthCode:auth];
         }
         success(user);
@@ -534,7 +536,7 @@
     @synchronized(self) {
         if (!inst) {
             inst = [[self alloc] initInstance];
-            inst.host = @"backbeam.io";
+            inst.host = @"backbeamapps.com";
             inst.port = 80;
             inst.env  = @"dev";
         }

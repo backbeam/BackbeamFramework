@@ -35,7 +35,9 @@
     references:(NSDictionary *)references
     identifier:(NSString*)identifier;
 
-+ (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session fromReferences:(NSDictionary*)references;
++ (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session
+                                    values:(NSDictionary*)values
+                                references:(NSMutableDictionary*)objects;
 
 - (void)setSession:(BackbeamSession*)session;
 

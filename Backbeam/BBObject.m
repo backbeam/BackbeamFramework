@@ -61,38 +61,42 @@
     return self;
 }
 
-- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier
-{
-    self = [super init];
-    if (self) {
-        self._entity = entity;
-        self._fields = [[NSMutableDictionary alloc] init];
-        self._commands = [[NSMutableDictionary alloc] init];
-        self._identifier = identifier;
-        self._session = session;
-        [self fillValuesWithDictionary:dict andReferences:references];
-    }
-    return self;
-}
+//- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier
+//{
+//    self = [super init];
+//    if (self) {
+//        self._entity = entity;
+//        self._fields = [[NSMutableDictionary alloc] init];
+//        self._commands = [[NSMutableDictionary alloc] init];
+//        self._identifier = identifier;
+//        self._session = session;
+//        [self fillValuesWithDictionary:dict andReferences:references];
+//    }
+//    return self;
+//}
 
-+ (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session fromReferences:(NSDictionary*)references {
-    NSMutableDictionary* refs = [[NSMutableDictionary alloc] initWithCapacity:references.count];
-    if (references) {
-        for (NSString* identifier in references) {
-            NSDictionary* object = [references objectForKey:identifier];
-            NSString* type = [object objectForKey:@"_type"];
-            BBObject* obj = [[BBObject alloc] initWith:session entity:type identifier:identifier];
-            [refs setObject:obj forKey:identifier];
-        }
-        
-        for (NSString* identifier in references) {
-            BBObject* obj = [refs objectForKey:identifier];
-            
-            NSDictionary* values = [references objectForKey:identifier];
-            [obj fillValuesWithDictionary:values andReferences:refs];
-        }
++ (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session
+                                    values:(NSDictionary*)values
+                                references:(NSMutableDictionary*)objects {
+    
+    if (!objects) {
+        objects = [[NSMutableDictionary alloc] initWithCapacity:values.count];
     }
-    return refs;
+    for (NSString* identifier in values.allKeys) {
+        BBObject* obj = [objects objectForKey:identifier];
+        if (obj) continue;
+        NSDictionary* object = [values dictionaryForKey:identifier];
+        NSString* type = [object stringForKey:@"type"];
+        obj = [[BBObject alloc] initWith:session entity:type identifier:identifier];
+        [objects setObject:obj forKey:identifier];
+    }
+    
+    for (NSString* identifier in values) {
+        BBObject* obj = [objects objectForKey:identifier];
+        NSDictionary* dict = [values dictionaryForKey:identifier];
+        [obj fillWithValues:dict references:objects];
+    }
+    return objects;
 }
 
 - (void)encodeWithCoder:(NSCoder *)coder {
@@ -113,13 +117,11 @@
     }
 }
 
-- (void)fillValuesWithDictionary:(NSDictionary*)dict andReferences:(NSDictionary*)references {
+- (void)fillWithValues:(NSDictionary*)dict references:(NSMutableDictionary*)references {
     [self._commands removeAllObjects];
     for (NSString* key in dict.allKeys) {
         NSObject* value = [dict objectForKey:key];
-        if ([key isEqualToString:@"id"]) {
-            self._identifier = [value description];
-        } else if ([key isEqualToString:@"created_at"]) {
+        if ([key isEqualToString:@"created_at"]) {
             self._createdAt = [BBObject dateFromValue:value];
         } else if ([key isEqualToString:@"updated_at"]) {
             self._updatedAt = [BBObject dateFromValue:value];
@@ -295,21 +297,24 @@
         return;
     }
     
-    NSString* status     = [result stringForKey:@"status"];
-    NSString* authCode   = [result stringForKey:@"auth"];
-    NSDictionary* object = [result dictionaryForKey:@"object"];
+    NSString* status      = [result stringForKey:@"status"];
+    NSString* authCode    = [result stringForKey:@"auth"];
+    NSDictionary* objects = [result dictionaryForKey:@"objects"];
+    NSString* identifier  = [result stringForKey:@"id"];
     
-    if (!status || !object) {
+    if (!status || !identifier || !objects) {
         failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
         return;
     }
+    
+    self._identifier = identifier;
     
     if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
         failure(self, [BBError errorWithStatus:status result:result]);
         return;
     }
-    
-    [self fillValuesWithDictionary:object andReferences:nil];
+    NSMutableDictionary* selfDict = [NSMutableDictionary dictionaryWithObject:self forKey:self._identifier];
+    [BBObject objectsWithSession:self._session values:objects references:selfDict];
     success(status, self, authCode);
 }
 
@@ -343,6 +348,7 @@
     
     [self._session perform:method path:path params:self._commands fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self._commands removeAllObjects];
+        
         [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             if ([self.entity isEqualToString:@"user"]) {
                 [self._fields removeObjectForKey:@"password"];
@@ -451,10 +457,9 @@
                      path:path
                    params:self._commands
                  progress:progress success:^(id result) {
-                     NSDictionary* object = [result dictionaryForKey:@"object"];
-                     if (object) {
-                         [self fillValuesWithDictionary:object andReferences:nil];
-                     }
+                     NSDictionary* objects = [result dictionaryForKey:@"objects"];
+                     NSMutableDictionary* selfDict = [NSMutableDictionary dictionaryWithObject:self forKey:self._identifier];
+                     [BBObject objectsWithSession:self._session values:objects references:selfDict];
         success(self);
     } failure:^(id result, NSError* error) {
         // TODO: response message?

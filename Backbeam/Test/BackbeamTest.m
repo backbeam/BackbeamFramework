@@ -15,6 +15,7 @@
 - (void)configure {
     
     [self before:^(DoneBlock done) {
+        [Backbeam setHost:@"backbeamapps.dev" port:8079];
         [Backbeam setProject:@"callezeta" sharedKey:@"5bd82df918d542f181f9308008f229c335812ba4" secretKey:@"c7b7726df5a0e96304cd6e1d44e86036038191826b52bc11dff6e2a626ea1c46b0344dcc069a14dd" environment:@"dev"];
         done();
     }];

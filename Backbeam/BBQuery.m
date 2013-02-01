@@ -70,38 +70,40 @@
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
         }
-        NSDictionary* references = [result dictionaryForKey:@"references"];
-        if (!references) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
-            return;
-        }
-        NSMutableDictionary* refs = [BBObject objectsWithSession:self._session fromReferences:references];
-        NSArray* objects = [result arrayForKey:@"objects"];
+        NSDictionary* objects = [result dictionaryForKey:@"objects"];
         if (!objects) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
             return;
         }
-        NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:objects.count];
-        for (NSDictionary* dict in objects) {
-            BBObject* obj = [[BBObject alloc] initWith:self._session entity:self._entity dictionary:dict references:refs identifier:nil];
-            [arr addObject:obj];
+        NSMutableDictionary* refs = [BBObject objectsWithSession:self._session values:objects references:nil];
+        NSArray* ids = [result arrayForKey:@"ids"];
+        if (!ids) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
+        for (NSString* identifier in ids) {
+            BBObject* obj = [refs objectForKey:identifier];
+            if (obj) { // should always exist
+                [arr addObject:obj];
+            }
         }
         NSNumber* totalCount = [result numberForKey:@"count"];
         
         success(arr, totalCount.integerValue);
     } failure:^(id result, NSError* error) {
-        if (error) {
+        if (result) {
+            if (![result isKindOfClass:[NSDictionary class]]) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                return;
+            }
+            NSString* status = [result stringForKey:@"status"];
+            if (![status isEqualToString:@"Success"]) {
+                failure([BBError errorWithStatus:status result:result]);
+                return;
+            }
+        } else {
             failure(error);
-            return;
-        }
-        if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
-            return;
-        }
-        NSString* status = [result stringForKey:@"status"];
-        if (![status isEqualToString:@"Success"]) {
-            failure([BBError errorWithStatus:status result:result]);
-            return;
         }
     }];
 }
