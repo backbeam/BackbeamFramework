@@ -23,16 +23,7 @@
         entity:(NSString*)entity;
 
 - (id)initWith:(BackbeamSession*)session
-        entity:(NSString*)entity;
-
-- (id)initWith:(BackbeamSession*)session
         entity:(NSString*)entity
-    identifier:(NSString*)identifier;
-
-- (id)initWith:(BackbeamSession*)session
-        entity:(NSString*)entity
-    dictionary:(NSDictionary*)dict
-    references:(NSDictionary *)references
     identifier:(NSString*)identifier;
 
 + (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session
@@ -51,36 +42,42 @@
 
 - (NSDate*)updatedAt;
 
+- (NSString*)loginData:(NSString*)_key forProvider:(NSString*)provider;
+
+- (NSString*)facebookData:(NSString*)key;
+
+- (NSString*)twitterData:(NSString*)key;
+
 // methods for reading fields
 
-- (NSString*)stringForKey:(NSString*)key;
+- (NSString*)stringForField:(NSString*)key;
 
-- (NSDate*)dateForKey:(NSString*)key;
+- (NSDate*)dateForField:(NSString*)key;
 
-- (NSNumber*)numberForKey:(NSString*)key;
+- (NSNumber*)numberForField:(NSString*)key;
 
-- (BBObject*)referenceForKey:(NSString*)key;
+- (BBObject*)referenceForField:(NSString*)key;
 
-- (BBLocation*)locationForKey:(NSString*)key;
+- (BBLocation*)locationForField:(NSString*)key;
 
-- (BBJoinResult*)joinResultForKey:(NSString*)key;
+- (BBJoinResult*)joinResultForField:(NSString*)key;
 
-- (id)objectForKey:(NSString*)key;
+- (id)objectForField:(NSString*)key;
 
 // methods for modifying fields
 
 - (BOOL)setObject:(id)obj
-           forKey:(NSString*)key;
+           forField:(NSString*)key;
 
-- (void)removeObjectForKey:(NSString*)key;
+- (void)removeField:(NSString*)key;
 
 - (BOOL)addReference:(BBObject*)object
-              forKey:(NSString*)key;
+              forField:(NSString*)key;
 
 - (BOOL)removeReference:(BBObject*)object
-                 forKey:(NSString*)key;
+                 forField:(NSString*)key;
 
-- (void)increment:(NSString*)key
+- (void)incrementField:(NSString*)field
                by:(NSInteger)value;
 
 // methods that interact with the API

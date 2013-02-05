@@ -42,41 +42,41 @@
                                                             address:@"San Francisco Square, Zaragoza City"];
         
         BBObject* object = [Backbeam emptyObjectForEntity:@"place"];
-        [object setObject:@"A new place" forKey:@"name"];
-        [object setObject:location forKey:@"location"];
+        [object setObject:@"A new place" forField:@"name"];
+        [object setObject:location forField:@"location"];
         [object save:^(BBObject* object) {
             assertOk(object.identifier);
             assertOk(object.createdAt);
             assertOk(object.updatedAt);
             assertEqual(object.createdAt, object.updatedAt);
             
-            [object setObject:@"New name" forKey:@"name"];
-            [object setObject:@"Terraza" forKey:@"type"];
+            [object setObject:@"New name" forField:@"name"];
+            [object setObject:@"Terraza" forField:@"type"];
             [object save:^(BBObject* obj) {
                 assertOk(obj.identifier);
                 assertOk(obj.createdAt);
                 assertOk(obj.updatedAt);
                 assertNotEqual(obj.createdAt, obj.updatedAt);
-                assertEqual([obj stringForKey:@"name"], @"New name");
+                assertEqual([obj stringForField:@"name"], @"New name");
                 
                 BBObject* object = [Backbeam emptyObjectForEntity:@"place" withIdentifier:obj.identifier];
                 [object refresh:^(BBObject* lastObject) {
-                    assertEqual([obj stringForKey:@"name"], [lastObject stringForKey:@"name"]);
-                    assertEqual([obj stringForKey:@"type"], [lastObject stringForKey:@"type"]);
-                    BBLocation* location = [lastObject locationForKey:@"location"];
+                    assertEqual([obj stringForField:@"name"], [lastObject stringForField:@"name"]);
+                    assertEqual([obj stringForField:@"type"], [lastObject stringForField:@"type"]);
+                    BBLocation* location = [lastObject locationForField:@"location"];
                     assertOk(location);
                     assertEqual(location.address, @"San Francisco Square, Zaragoza City");
                     assertOk(location.latitude  == 41.640964);
                     assertOk(location.longitude == -0.8952422);
                     assertEqual(obj.createdAt, lastObject.createdAt);
                     
-                    [lastObject setObject:@"Final name" forKey:@"name"];
+                    [lastObject setObject:@"Final name" forField:@"name"];
                     [lastObject save:^(BBObject* lastObject) {
                         // partial update
-                        [obj setObject:@"Some description" forKey:@"description"];
+                        [obj setObject:@"Some description" forField:@"description"];
                         [obj save:^(BBObject* obj) {
-                            assertEqual([obj stringForKey:@"type"], [lastObject stringForKey:@"type"]);
-                            assertEqual([obj stringForKey:@"name"], [lastObject stringForKey:@"name"]);
+                            assertEqual([obj stringForField:@"type"], [lastObject stringForField:@"type"]);
+                            assertEqual([obj stringForField:@"name"], [lastObject stringForField:@"name"]);
                             done();
                         } failure:^(BBObject* obj, NSError* error) {
                             assertIfError(error);
@@ -101,8 +101,8 @@
         [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount) {
             assertOk(objects.count == 1);
             BBObject* object = [objects objectAtIndex:0];
-            assertEqual([object stringForKey:@"name"], @"Final name");
-            assertEqual([object stringForKey:@"description"], @"Some description");
+            assertEqual([object stringForField:@"name"], @"Final name");
+            assertEqual([object stringForField:@"description"], @"Some description");
             done();
         } failure:^(NSError* error) {
             assertIfError(error);
@@ -143,24 +143,24 @@
     
     [self test:@"Register, login" done:^(DoneBlock done) {
         BBObject* object = [Backbeam emptyObjectForEntity:@"user"];
-        [object setObject:@"gimenete@gmail.com" forKey:@"email"];
-        [object setObject:@"123456" forKey:@"password"];
+        [object setObject:@"gimenete@gmail.com" forField:@"email"];
+        [object setObject:@"123456" forField:@"password"];
         // TODO: set a name
         [object save:^(BBObject* object) {
             assertOk([Backbeam currentUser]);
             assertEqual([Backbeam currentUser].identifier, object.identifier);
-            assertEqual([[Backbeam currentUser] stringForKey:@"email"], [object stringForKey:@"email"]);
-            assertNotOk([[Backbeam currentUser] stringForKey:@"password"]);
-            assertNotOk([object stringForKey:@"password"]);
+            assertEqual([[Backbeam currentUser] stringForField:@"email"], [object stringForField:@"email"]);
+            assertNotOk([[Backbeam currentUser] stringForField:@"password"]);
+            assertNotOk([object stringForField:@"password"]);
             
             [Backbeam logout];
             assertNotOk([Backbeam currentUser]);
             [Backbeam loginWithEmail:@"gimenete@gmail.com" password:@"123456" success:^(BBObject* object) {
                 assertOk([Backbeam currentUser]);
                 assertEqual([Backbeam currentUser].identifier, object.identifier);
-                assertEqual([[Backbeam currentUser] stringForKey:@"email"], [object stringForKey:@"email"]);
-                assertNotOk([[Backbeam currentUser] stringForKey:@"password"]);
-                assertNotOk([object stringForKey:@"password"]);
+                assertEqual([[Backbeam currentUser] stringForField:@"email"], [object stringForField:@"email"]);
+                assertNotOk([[Backbeam currentUser] stringForField:@"password"]);
+                assertNotOk([object stringForField:@"password"]);
                 
                 done();
             } failure:^(NSError* error) {
@@ -173,8 +173,8 @@
 
     [self test:@"User already registered" done:^(DoneBlock done) {
         BBObject* object = [Backbeam emptyObjectForEntity:@"user"];
-        [object setObject:@"gimenete@gmail.com" forKey:@"email"];
-        [object setObject:@"123456" forKey:@"password"];
+        [object setObject:@"gimenete@gmail.com" forField:@"email"];
+        [object setObject:@"123456" forField:@"password"];
         [object save:^(BBObject* object) {
             assertError(@"Registration should have failed");
         } failure:^(BBObject* object, NSError* error) {

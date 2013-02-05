@@ -11,9 +11,6 @@
 
 @class BackbeamSession;
 
-typedef void(^SuccessTwitterBlock)(BBObject* user, NSDictionary* extraInfo);
-typedef void(^FailureTwitterBlock)(NSError* err);
-
 @interface BBTwitterLoginViewController : UIViewController <UIWebViewDelegate>
 
 @property (strong, nonatomic) IBOutlet UIWebView *webview;

@@ -178,23 +178,25 @@
                     NSDictionary* postParams = [NSDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
                                                 oauthTokenSecret, @"oauth_token_secret", nil];
                     
-                    [self._session socialSignup:@"twitter" params:postParams success:^(BBObject* user) {
+                    [self._session socialSignup:@"twitter" params:postParams success:^(BBObject* user, BOOL isNew) {
                         NSDictionary* extraInfo = [NSDictionary dictionaryWithObjectsAndKeys:userId, @"twitter_user_id",
                                                    screenName, @"twitter_screen_name",
                                                    oauthToken, @"oauth_token",
                                                    oauthTokenSecret, @"oauth_token_secret", nil];
-                        self.success(user, extraInfo);
+                        self.success(user, extraInfo, isNew);
                     } failure:^(NSError* err) {
                         self.failure(err);
                     }];
                 } failure:^(AFHTTPRequestOperation* op, NSError* err) {
                     NSLog(@"error %@ %@", err, op.responseString);
+                    self.failure(err);
                 }];
                 [operation start];
             }
 
         } else {
             // parameters missing. should never happen
+            self.failure([BBError errorWithStatus:@"OAuthParametersMissing" result:nil]);
         }
         return NO;
     }

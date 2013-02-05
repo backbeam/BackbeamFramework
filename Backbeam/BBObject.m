@@ -16,6 +16,7 @@
 @property (nonatomic, strong) NSString* _entity;
 @property (nonatomic, strong) NSMutableDictionary* _fields;
 @property (nonatomic, strong) NSMutableDictionary* _commands;
+@property (nonatomic, strong) NSMutableDictionary* _loginData;
 @property (nonatomic, strong) NSDate* _createdAt;
 @property (nonatomic, strong) NSDate* _updatedAt;
 @property (nonatomic, strong) BackbeamSession* _session;
@@ -31,6 +32,7 @@
         self._entity = [decoder decodeObjectForKey:@"entity"];
         self._identifier = [decoder decodeObjectForKey:@"id"];
         self._fields = [decoder decodeObjectForKey:@"fields"];
+        self._loginData = [decoder decodeObjectForKey:@"login"];
         self._commands = [[NSMutableDictionary alloc] init];
     }
     return self;
@@ -61,20 +63,6 @@
     return self;
 }
 
-//- (id)initWith:(BackbeamSession*)session entity:(NSString*)entity dictionary:(NSDictionary*)dict references:(NSDictionary *)references identifier:(NSString*)identifier
-//{
-//    self = [super init];
-//    if (self) {
-//        self._entity = entity;
-//        self._fields = [[NSMutableDictionary alloc] init];
-//        self._commands = [[NSMutableDictionary alloc] init];
-//        self._identifier = identifier;
-//        self._session = session;
-//        [self fillValuesWithDictionary:dict andReferences:references];
-//    }
-//    return self;
-//}
-
 + (NSMutableDictionary*)objectsWithSession:(BackbeamSession*)session
                                     values:(NSDictionary*)values
                                 references:(NSMutableDictionary*)objects {
@@ -103,6 +91,9 @@
     [coder encodeObject:self._entity forKey:@"entity"];
     [coder encodeObject:self._identifier forKey:@"id"];
     [coder encodeObject:self._fields forKey:@"fields"];
+    if (self._loginData) {
+        [coder encodeObject:self._loginData forKey:@"login"];
+    }
 }
 
 - (void)setSession:(BackbeamSession*)session {
@@ -127,6 +118,12 @@
             self._updatedAt = [BBObject dateFromValue:value];
         } else if ([key isEqualToString:@"type"]) {
             self._entity = [value description];
+        } else if ([key hasPrefix:@"login_"]) {
+            NSString* _key = [key substringFromIndex:@"login_".length];
+            if (!self._loginData) {
+                self._loginData = [[NSMutableDictionary alloc] init];
+            }
+            [self._loginData setObject:value forKey:_key];
         } else {
             NSRange range = [key rangeOfString:@"#"];
             if (range.location != NSNotFound) {
@@ -177,7 +174,20 @@
 
 + (NSDate*)dateFromValue:(id)value {
     NSTimeInterval time = [(NSNumber*)value doubleValue]/1000;
-    return [NSDate dateWithTimeIntervalSince1970:time];;
+    return [NSDate dateWithTimeIntervalSince1970:time];
+}
+
+- (NSString*)loginData:(NSString*)_key forProvider:(NSString*)provider {
+    NSString* key = [provider stringByAppendingFormat:@"_%@", _key];
+    return [self._loginData stringForKey:key];
+}
+
+- (NSString*)facebookData:(NSString*)key {
+    return [self loginData:key forProvider:@"fb"];
+}
+
+- (NSString*)twitterData:(NSString*)key {
+    return [self loginData:key forProvider:@"tw"];
 }
 
 - (NSString*)identifier {
@@ -196,19 +206,19 @@
     return self._updatedAt;
 }
 
-- (NSString*)stringForKey:(NSString*)key {
+- (NSString*)stringForField:(NSString*)key {
     return [self._fields stringForKey:key];
 }
 
-- (NSDate*)dateForKey:(NSString*)key {
+- (NSDate*)dateForField:(NSString*)key {
     return [self._fields dateForKey:key];
 }
 
-- (NSNumber*)numberForKey:(NSString*)key {
+- (NSNumber*)numberForField:(NSString*)key {
     return [self._fields numberForKey:key];
 }
 
-- (BBObject*)referenceForKey:(NSString*)key {
+- (BBObject*)referenceForField:(NSString*)key {
     id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[BBObject class]]) {
         return (BBObject*)obj;
@@ -216,7 +226,7 @@
     return nil;
 }
 
-- (BBLocation*)locationForKey:(NSString*)key {
+- (BBLocation*)locationForField:(NSString*)key {
     id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[BBLocation class]]) {
         return (BBLocation*)obj;
@@ -224,7 +234,7 @@
     return nil;
 }
 
-- (BBJoinResult*)joinResultForKey:(NSString*)key {
+- (BBJoinResult*)joinResultForField:(NSString*)key {
     id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[BBJoinResult class]]) {
         return (BBJoinResult*)obj;
@@ -232,7 +242,7 @@
     return nil;
 }
 
-- (BOOL)setObject:(id)obj forKey:(NSString*)key {
+- (BOOL)setObject:(id)obj forField:(NSString*)key {
     NSString* commandValue = [BBUtils stringFromObject:obj addEntity:NO];
     if (!commandValue) return NO;
     
@@ -242,7 +252,7 @@
     return YES;
 }
 
-- (BOOL)addReference:(BBObject*)object forKey:(NSString*)key {
+- (BOOL)addReference:(BBObject*)object forField:(NSString*)key {
     if (!object.identifier) return NO;
     
     NSString* command = [NSString stringWithFormat:@"add-%@", key];
@@ -255,7 +265,7 @@
     return YES;
 }
 
-- (BOOL)removeReference:(BBObject*)object forKey:(NSString*)key {
+- (BOOL)removeReference:(BBObject*)object forField:(NSString*)key {
     if (!object.identifier) return NO;
     
     NSString* command = [NSString stringWithFormat:@"rem-%@", key];
@@ -268,19 +278,19 @@
     return YES;
 }
 
-- (id)objectForKey:(NSString*)key {
+- (id)objectForField:(NSString*)key {
     return [self._fields objectForKey:key];
 }
 
-- (void)removeObjectForKey:(NSString*)key {
+- (void)removeField:(NSString*)key {
     NSString* command = [NSString stringWithFormat:@"set-%@", key];
     [self._fields removeObjectForKey:key];
     [self._commands setObject:@"-" forKey:command]; // TODO, not tested. REST API could change
 }
 
 // TODO: support many increments without overriding previous command
-- (void)increment:(NSString*)key by:(NSInteger)value {
-    NSNumber* n = [self numberForKey:key];
+- (void)incrementField:(NSString*)key by:(NSInteger)value {
+    NSNumber* n = [self numberForField:key];
     if (n) {
         n = [NSNumber numberWithInteger:n.integerValue+value];
     } else {
@@ -402,7 +412,7 @@
 - (UIImage*)imageWithSize:(CGSize)size
                   success:(SuccessImageBlock)success {
     
-    NSNumber* version = [self numberForKey:@"version"];
+    NSNumber* version = [self numberForField:@"version"];
     return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         // ignore
         NSLog(@"error %@", error);
@@ -413,7 +423,7 @@
                   success:(SuccessImageBlock)success
                   failure:(FailureObjectBlock)failure {
     
-    NSNumber* version = [self numberForKey:@"version"];
+    NSNumber* version = [self numberForField:@"version"];
     return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         failure(self, error);
     }];
@@ -425,7 +435,7 @@
                   success:(SuccessImageBlock)success
                   failure:(FailureObjectBlock)failure {
     
-    NSNumber* version = [self numberForKey:@"version"];
+    NSNumber* version = [self numberForField:@"version"];
     return [self._session image:self._identifier version:version withSize:size progress:progress success:success failure:^(NSError* error) {
         failure(self, error);
     }];
@@ -518,7 +528,7 @@
                          failure:(FailureObjectBlock)failure {
     
     if (!self._identifier) { return NO; }
-    NSNumber* version = [self numberForKey:@"version"];
+    NSNumber* version = [self numberForField:@"version"];
     if (!version) { return NO; }
     
     NSString* path = [NSString stringWithFormat:@"/data/file/download/%@/%@", self._identifier, version];

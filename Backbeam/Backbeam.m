@@ -537,6 +537,13 @@
         }
         
         NSDictionary* dict = (NSDictionary*)result;
+        NSString* status = [result stringForKey:@"status"];
+        BOOL isNew = [status isEqualToString:@"Success"];
+        if (!isNew && ![status isEqualToString:@"UserAlreadyExists"]) {
+            failure([BBError errorWithStatus:status result:result]);
+            return;
+        }
+        
         NSDictionary* values = [dict dictionaryForKey:@"objects"];
         NSString* identifier = [dict stringForKey:@"id"];
         NSString* auth = [dict stringForKey:@"auth"];
@@ -548,7 +555,7 @@
         NSDictionary* objects = [BBObject objectsWithSession:self values:values references:nil];
         BBObject* user = [objects objectForKey:identifier];
         [self setCurrentUser:user withAuthCode:auth];
-        success(user);
+        success(user, isNew);
     } failure:^(id result, NSError* err) {
         // TODO: check result
         failure(err);
@@ -560,8 +567,8 @@
                               failure:(FailureFacebookBlock)failure {
     
     NSDictionary* postParams = [NSDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
-    [self socialSignup:@"facebook" params:postParams success:^(BBObject* user) {
-        success(user);
+    [self socialSignup:@"facebook" params:postParams success:^(BBObject* user, BOOL isNew) {
+        success(user, isNew);
     } failure:^(NSError* err) {
         failure(err);
     }];

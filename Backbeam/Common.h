@@ -42,8 +42,11 @@ typedef void(^FailureUserBlock)(BBUser* user, NSError* err);
 typedef void(^ProgressDataObjectBlock)(BBObject* object, NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
 typedef void(^SuccessDownloadBlock)(BBObject* object, NSData*);
 
-typedef void(^SuccessSocialSignupBlock)(BBObject* user);
+typedef void(^SuccessSocialSignupBlock)(BBObject* user, BOOL isNew);
 typedef void(^FailureSocialSignupBlock)(NSError* err);
 
-typedef void(^SuccessFacebookBlock)(BBObject* user);
+typedef void(^SuccessFacebookBlock)(BBObject* user, BOOL isNew);
 typedef void(^FailureFacebookBlock)(NSError* err);
+
+typedef void(^SuccessTwitterBlock)(BBObject* user, NSDictionary* extraInfo, BOOL isNew);
+typedef void(^FailureTwitterBlock)(NSError* err);
