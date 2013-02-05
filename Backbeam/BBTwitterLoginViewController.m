@@ -147,7 +147,7 @@
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
-    return (interfaceOrientation == UIInterfaceOrientationPortrait);
+    return YES;
 }
 
 // See https://dev.twitter.com/docs/auth/implementing-sign-twitter
@@ -170,26 +170,23 @@
                     NSString* body = [[NSString alloc] initWithData:response encoding:NSUTF8StringEncoding];
                     NSDictionary* bodyParams = [BBUtils parseQueryString:body];
                     
-                    NSString* oauthToken = [bodyParams objectForKey:@"oauth_token"];
+                    NSString* oauthToken       = [bodyParams objectForKey:@"oauth_token"];
                     NSString* oauthTokenSecret = [bodyParams objectForKey:@"oauth_token_secret"];
-                    NSString* screenName = [bodyParams objectForKey:@"screen_name"];
-                    NSString* userId = [bodyParams objectForKey:@"user_id"];
+                    NSString* screenName       = [bodyParams objectForKey:@"screen_name"];
+                    NSString* userId           = [bodyParams objectForKey:@"user_id"];
                     
                     NSDictionary* postParams = [NSDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
                                                 oauthTokenSecret, @"oauth_token_secret", nil];
-                    [self._session perform:@"POST" path:@"/user/twitter/signup" params:postParams fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
-                        NSDictionary* dict = result;
-                        BBObject* obj = [[BBObject alloc] initWith:self._session entity:@"user" dictionary:dict references:nil identifier:nil];
+                    
+                    [self._session socialSignup:@"twitter" params:postParams success:^(BBObject* user) {
                         NSDictionary* extraInfo = [NSDictionary dictionaryWithObjectsAndKeys:userId, @"twitter_user_id",
                                                    screenName, @"twitter_screen_name",
                                                    oauthToken, @"oauth_token",
                                                    oauthTokenSecret, @"oauth_token_secret", nil];
-                        self.success(obj, extraInfo);
-                    } failure:^(id result, NSError* err) {
-                        // TODO: check result
+                        self.success(user, extraInfo);
+                    } failure:^(NSError* err) {
                         self.failure(err);
                     }];
-                    
                 } failure:^(AFHTTPRequestOperation* op, NSError* err) {
                     NSLog(@"error %@ %@", err, op.responseString);
                 }];

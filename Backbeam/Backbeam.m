@@ -173,6 +173,9 @@
     [params setObject:[BBUtils nonce] forKey:@"nonce"];
     [params setObject:self.sharedKey forKey:@"key"];
     [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+    if (self.authCode) {
+        [params setObject:self.authCode forKey:@"auth"];
+    }
     
     NSMutableString* parameterString = [[NSMutableString alloc] init];
     NSMutableString* cacheKeyString = [[NSMutableString alloc] initWithString:httpMethod]; // only GET requests should be cached
@@ -441,6 +444,7 @@
 
 - (void)setCurrentUser:(BBObject*)user withAuthCode:(NSString*)authCode {
     self._currentUser = user;
+    self.authCode = authCode;
     if (user == nil) {
         [[NSFileManager defaultManager] removeItemAtPath:[self userPath] error:nil]; // TODO: handle error
     } else {
@@ -517,6 +521,51 @@
     } failure:^(id result, NSError* error) {
         failure([BBError errorWithResult:result error:error]);
     }];
+}
+
+- (void)socialSignup:(NSString*)provider
+              params:(NSDictionary*)params
+             success:(SuccessSocialSignupBlock)success
+             failure:(FailureSocialSignupBlock)failure {
+    
+    NSString* path = [NSString stringWithFormat:@"/user/%@/signup", provider];
+    [self perform:@"POST" path:path params:params fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        NSDictionary* dict = (NSDictionary*)result;
+        NSDictionary* values = [dict dictionaryForKey:@"objects"];
+        NSString* identifier = [dict stringForKey:@"id"];
+        NSString* auth = [dict stringForKey:@"auth"];
+        if (!values || !identifier || !auth) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        NSDictionary* objects = [BBObject objectsWithSession:self values:values references:nil];
+        BBObject* user = [objects objectForKey:identifier];
+        [self setCurrentUser:user withAuthCode:auth];
+        success(user);
+    } failure:^(id result, NSError* err) {
+        // TODO: check result
+        failure(err);
+    }];
+}
+
+- (void)facebookSignupWithAccessToken:(NSString*)accessToken
+                              success:(SuccessFacebookBlock)success
+                              failure:(FailureFacebookBlock)failure {
+    
+    NSDictionary* postParams = [NSDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
+    [self socialSignup:@"facebook" params:postParams success:^(BBObject* user) {
+        success(user);
+    } failure:^(NSError* err) {
+        failure(err);
+    }];
+
 }
 
 - (BBQuery*)queryForEntity:(NSString*)entity {
@@ -603,6 +652,12 @@
 // TODO: login with joins. JoinResult should implemente NSCoding
 + (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
     [[BackbeamSession instance] loginWithEmail:email password:password success:success failure:failure];
+}
+
++ (void)facebookSignupWithAccessToken:(NSString*)accessToken
+                              success:(SuccessFacebookBlock)success
+                              failure:(FailureFacebookBlock)failure {
+    [[BackbeamSession instance] facebookSignupWithAccessToken:accessToken success:success failure:failure];
 }
 
 + (BBQuery*)queryForEntity:(NSString*)entity {

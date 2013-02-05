@@ -61,6 +61,11 @@
         success:(SuccessOperationBlock)success
         failure:(FailureOperationBlock)failure;
 
+- (void)socialSignup:(NSString*)provider
+              params:(NSDictionary*)params
+             success:(SuccessSocialSignupBlock)success
+             failure:(FailureSocialSignupBlock)failure;
+
 @end
 
 @interface Backbeam : NSObject
@@ -77,6 +82,10 @@
                consumerSecret:(NSString*)twitterConsumerSecret;
 
 + (BBTwitterLoginViewController*)twitterLoginViewController;
+
++ (void)facebookSignupWithAccessToken:(NSString*)accessToken
+                              success:(SuccessFacebookBlock)success
+                              failure:(FailureFacebookBlock)failure;
 
 + (BBQuery*)queryForEntity:(NSString*)entity;
 
