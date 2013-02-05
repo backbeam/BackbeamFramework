@@ -28,7 +28,7 @@
     
     [self test:@"Test empty query" done:^(DoneBlock done) {
         BBQuery* query = [Backbeam queryForEntity:@"place"];
-        [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount) {
+        [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount, BOOL fromCache) {
             assertOk(objects.count == 0);
             done();
         } failure:^(NSError* error) {
@@ -98,7 +98,7 @@
     [self test:@"Query with BQL and params" done:^(DoneBlock done) {
         BBQuery* query = [Backbeam queryForEntity:@"place"];
         [query setQuery:@"where type=?" withParams:[NSArray arrayWithObject:@"Terraza"]];
-        [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount) {
+        [query fetch:100 offset:0 success:^(NSArray* objects, NSInteger totalCount, BOOL fromCache) {
             assertOk(objects.count == 1);
             BBObject* object = [objects objectAtIndex:0];
             assertEqual([object stringForField:@"name"], @"Final name");

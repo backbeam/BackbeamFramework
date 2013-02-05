@@ -90,7 +90,7 @@
         }
         NSNumber* totalCount = [result numberForKey:@"count"];
         
-        success(arr, totalCount.integerValue);
+        success(arr, totalCount.integerValue, fromCache);
     } failure:^(id result, NSError* error) {
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {
