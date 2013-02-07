@@ -21,6 +21,12 @@
 @class BBQuery;
 @class BBTwitterLoginViewController;
 
+@protocol BBEventDelegate <NSObject>
+
+- (void)eventReceived:(NSString*)event message:(NSObject*)message;
+
+@end
+
 @interface BackbeamSession : NSObject  <SocketIODelegate>
 
 - (void)download:(NSMutableURLRequest*)request
@@ -127,5 +133,11 @@
 + (void)requestPasswordResetWithEmail:(NSString*)email
                               success:(SuccessBlock)success
                               failure:(FailureBlock)failure;
+
++ (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate;
+
++ (BOOL)unsubscribeFromEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate;
+
++ (BOOL)sendEvent:(NSString*)event message:(NSDictionary*)message;
 
 @end

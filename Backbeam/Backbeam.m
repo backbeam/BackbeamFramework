@@ -18,6 +18,28 @@
 #import "JSONKit.h"
 #import "BBError.h"
 
+#if !__has_feature(objc_arc)
+#error Backbeam must be built with ARC.
+// If you want to turn ARC on only for Backbeam files, add -fobjc-arc to the build phase for each of its files.
+#endif
+
+@interface BBWeakObject : NSObject
+
+@property (nonatomic, weak) id object;
+
+@end
+
+@implementation BBWeakObject
+
+- (id)initWithObject:(id)obj;
+{
+    if (self = [super init]) {
+        self.object = obj;
+    }
+    return self;
+}
+@end
+
 @interface BackbeamSession ()
 
 @property (nonatomic, strong) AFHTTPClient* client;
@@ -43,6 +65,8 @@
 @property (nonatomic, strong) BBObject* _currentUser;
 
 @property (nonatomic, strong) NSDictionary* knownMimeTypes;
+
+@property (nonatomic, strong) NSMutableDictionary* roomDelegates;
 
 @property (nonatomic, strong) SocketIO* socketio;
 
@@ -90,6 +114,7 @@
         cachePath = [cachePath stringByAppendingPathComponent:@"Caches"];
         self.queryCache = [[BBCache alloc] initWithDirectory:path maxSize:1024*1024*10];
 
+        self.roomDelegates = [[NSMutableDictionary alloc] init];
     }
     return self;
 }
@@ -108,45 +133,101 @@
                      self.env, self.project, self.host, self.port];
     self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
     
-//    self.socketio = [[SocketIO alloc] initWithDelegate:self];
-//    [self.socketio connectToHost:self.host onPort:self.port];
+    self.socketio = [[SocketIO alloc] initWithDelegate:self];
+    [self.socketio connectToHost:self.host onPort:self.port];
+}
+
+- (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
+    NSString* room = [self roomName:event];
+    NSMutableArray* delegates = (NSMutableArray*)[self.roomDelegates arrayForKey:room];
+    if (!delegates) {
+        delegates = [[NSMutableArray alloc] init];
+        [self.roomDelegates setObject:delegates forKey:room];
+    }
+    [delegates addObject:[[BBWeakObject alloc] initWithObject:delegate]];
+    if (!self.socketio) return NO;
+    // TODO: check if it works if is not already connected
+    [self.socketio sendEvent:@"subscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", nil]];
+    return YES;
+}
+
+- (BOOL)unsubscribeFromEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
+    NSString* room = [self roomName:event];
+    NSMutableArray* delegates = (NSMutableArray*)[self.roomDelegates arrayForKey:room];
+    if (!delegates) return NO;
+    [delegates removeObject:delegate];
+    if (!self.socketio) return NO;
+    // TODO: check if it works if is not already connected
+    [self.socketio sendEvent:@"unsubscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", nil]];
+    return YES;
+}
+
+- (BOOL)sendEvent:(NSString*)event message:(NSDictionary*)message {
+    if (!self.socketio) return NO;
+    NSString* room = [self roomName:event];
+    [self.socketio sendEvent:@"publish" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", message, @"data", nil]];
+    return YES;
 }
 
 - (NSString*)roomName:(NSString*)room {
-    NSLog(@"room %@", [NSString stringWithFormat:@"%@/%@/%@", self.project, self.env, room]);
     return [NSString stringWithFormat:@"%@/%@/%@", self.project, self.env, room];
 }
 
-- (void) socketIODidConnect:(SocketIO *)socket {
+- (void)socketIODidConnect:(SocketIO *)socket {
     NSLog(@"socketIODidConnect");
-    [socket sendEvent:@"subscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:[self roomName:@"foo"], @"room", nil]];
 }
 
-- (void) socketIODidDisconnect:(SocketIO *)socket {
+- (void)socketIODidDisconnect:(SocketIO *)socket {
+    // TODO: subscribe to events again
     NSLog(@"socketIODidDisconnect");
 }
 
-- (void) socketIO:(SocketIO *)socket didReceiveMessage:(SocketIOPacket *)packet {
+- (void)socketIO:(SocketIO *)socket didReceiveMessage:(SocketIOPacket *)packet {
     NSLog(@"didReceiveMessage %@", packet);
 }
 
-- (void) socketIO:(SocketIO *)socket didReceiveJSON:(SocketIOPacket *)packet {
+- (void)socketIO:(SocketIO *)socket didReceiveJSON:(SocketIOPacket *)packet {
     NSLog(@"didReceiveJSON");
 }
 
-- (void) socketIO:(SocketIO *)socket didReceiveEvent:(SocketIOPacket *)packet {
-    NSLog(@"didReceiveEvent %@", packet.dataAsJSON);
+- (void)socketIO:(SocketIO *)socket didReceiveEvent:(SocketIOPacket *)packet {
+    id result = packet.dataAsJSON;
+    if ([result isKindOfClass:[NSDictionary class]]) {
+        NSDictionary* dict = (NSDictionary*)result;
+        NSArray* args = [dict arrayForKey:@"args"];
+        if (args.count > 0) {
+            dict = [args objectAtIndex:0];
+        }
+        if ([dict isKindOfClass:[NSDictionary class]]) {
+            NSString* room = [dict stringForKey:@"room"];
+            NSDictionary* data = [dict dictionaryForKey:@"data"];
+            if (room && data) {
+                NSString* prefix = [self roomName:@""];
+                if ([room hasPrefix:prefix]) {
+                    NSString* event = [room substringFromIndex:prefix.length];
+                    NSArray* delegates = [self.roomDelegates arrayForKey:room];
+                    for (BBWeakObject* obj in delegates) {
+                        id<BBEventDelegate> delegate = obj.object;
+                        if (delegate) {
+                            [delegate eventReceived:event message:data];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // NSLog(@"didReceiveEvent %@", result);
 }
 
-- (void) socketIO:(SocketIO *)socket didSendMessage:(SocketIOPacket *)packet {
-    NSLog(@"didSendMessage");
+- (void)socketIO:(SocketIO *)socket didSendMessage:(SocketIOPacket *)packet {
+    // NSLog(@"didSendMessage");
 }
 
-- (void) socketIOHandshakeFailed:(SocketIO *)socket {
+- (void)socketIOHandshakeFailed:(SocketIO *)socket {
     NSLog(@"socketIOHandshakeFailed");
 }
 
-- (void) socketIO:(SocketIO *)socket failedToConnectWithError:(NSError *)error {
+- (void)socketIO:(SocketIO *)socket failedToConnectWithError:(NSError *)error {
     NSLog(@"failedToConnectWithError");
 }
 
@@ -681,6 +762,18 @@
 
 + (BBObject*)emptyObjectForEntity:(NSString*)entity withIdentifier:(NSString*)identifier {
     return [[BackbeamSession instance] emptyObjectForEntity:entity withIdentifier:identifier];
+}
+
++ (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
+    return [[BackbeamSession instance] subscribeToEvents:event delegate:delegate];
+}
+
++ (BOOL)unsubscribeFromEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
+    return [[BackbeamSession instance] unsubscribeFromEvents:event delegate:delegate];
+}
+
++ (BOOL)sendEvent:(NSString*)event message:(NSDictionary*)message {
+    return [[BackbeamSession instance] sendEvent:event message:message];
 }
 
 @end
