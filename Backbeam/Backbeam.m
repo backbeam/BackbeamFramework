@@ -155,7 +155,12 @@
     NSString* room = [self roomName:event];
     NSMutableArray* delegates = (NSMutableArray*)[self.roomDelegates arrayForKey:room];
     if (!delegates) return NO;
-    [delegates removeObject:delegate];
+    for (BBWeakObject* obj in delegates) {
+        if (obj.object == delegate) {
+            [delegates removeObject:obj];
+            break;
+        }
+    }
     if (!self.socketio) return NO;
     // TODO: check if it works if is not already connected
     [self.socketio sendEvent:@"unsubscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", nil]];
