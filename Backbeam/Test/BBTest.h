@@ -13,6 +13,7 @@
 #define assertNotOk(condition) if(condition) { [self failed:@"assertNotOk" file:__FILE__ line:__LINE__]; return; }
 #define assertEqual(a, b) if(a != b && ![a isEqual:b]) { [self failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
 #define assertNotEqual(a, b) if(a == b || [a isEqual:b]) { [self failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
+#define assertStringEqual(a, b) if(![a isEqualToString:b]) { [self failed:[NSString stringWithFormat:@"%@ != %@", a, b] file:__FILE__ line:__LINE__]; return; }
 
 @class BBTest;
 typedef void(^DoneBlock)();

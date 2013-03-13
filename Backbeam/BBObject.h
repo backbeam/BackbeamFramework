@@ -48,6 +48,8 @@
 
 - (NSString*)twitterData:(NSString*)key;
 
+- (NSArray*)fieldNames;
+
 // methods for reading fields
 
 - (NSString*)stringForField:(NSString*)key;
@@ -56,29 +58,38 @@
 
 - (NSNumber*)numberForField:(NSString*)key;
 
-- (BBObject*)referenceForField:(NSString*)key;
+- (BBObject*)objectForField:(NSString*)key;
 
 - (BBLocation*)locationForField:(NSString*)key;
 
 - (BBJoinResult*)joinResultForField:(NSString*)key;
 
-- (id)objectForField:(NSString*)key;
+- (id)rawValueForField:(NSString*)key;
 
 // methods for modifying fields
 
-- (BOOL)setObject:(id)obj
-           forField:(NSString*)key;
+- (BOOL)setString:(NSString*)obj forField:(NSString*)key;
+
+- (BOOL)setNumber:(NSNumber*)obj forField:(NSString*)key;
+
+- (BOOL)setLocation:(BBLocation*)obj forField:(NSString*)key;
+
+- (BOOL)setObject:(BBObject*)obj forField:(NSString*)key;
+
+- (BOOL)setDate:(NSDate*)obj forField:(NSString*)key;
+
+- (BOOL)setRawValue:(id)obj forField:(NSString*)key;
 
 - (void)removeField:(NSString*)key;
 
-- (BOOL)addReference:(BBObject*)object
-              forField:(NSString*)key;
+- (BOOL)addObject:(BBObject*)object
+         forField:(NSString*)key;
 
-- (BOOL)removeReference:(BBObject*)object
-                 forField:(NSString*)key;
+- (BOOL)removeObject:(BBObject*)object
+            forField:(NSString*)key;
 
 - (void)incrementField:(NSString*)field
-               by:(NSInteger)value;
+                    by:(NSInteger)value;
 
 // methods that interact with the API
 
@@ -89,6 +100,10 @@
        failure:(FailureObjectBlock)failure;
 
 - (BOOL)refresh:(SuccessObjectBlock)success
+        failure:(FailureObjectBlock)failure;
+
+- (BOOL)refresh:(NSString*)joins
+        success:(SuccessObjectBlock)success
         failure:(FailureObjectBlock)failure;
 
 // methods for files

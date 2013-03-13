@@ -177,7 +177,14 @@
     return [NSDate dateWithTimeIntervalSince1970:time];
 }
 
+- (NSArray*)fieldNames {
+    return self._fields.allKeys;
+}
+
 - (NSString*)loginData:(NSString*)_key forProvider:(NSString*)provider {
+    if (!self._loginData) {
+        return nil;
+    }
     NSString* key = [provider stringByAppendingFormat:@"_%@", _key];
     return [self._loginData stringForKey:key];
 }
@@ -218,7 +225,11 @@
     return [self._fields numberForKey:key];
 }
 
-- (BBObject*)referenceForField:(NSString*)key {
+- (id)rawValueForField:(NSString*)key {
+    return [self._fields objectForKey:key];
+}
+
+- (BBObject*)objectForField:(NSString*)key {
     id obj = [self._fields objectForKey:key];
     if ([obj isKindOfClass:[BBObject class]]) {
         return (BBObject*)obj;
@@ -242,7 +253,27 @@
     return nil;
 }
 
-- (BOOL)setObject:(id)obj forField:(NSString*)key {
+- (BOOL)setString:(NSString*)obj forField:(NSString*)key {
+    return [self setRawValue:obj forField:key];
+}
+
+- (BOOL)setNumber:(NSNumber*)obj forField:(NSString*)key {
+    return [self setRawValue:obj forField:key];
+}
+
+- (BOOL)setLocation:(BBLocation*)obj forField:(NSString*)key {
+    return [self setRawValue:obj forField:key];
+}
+
+- (BOOL)setObject:(BBObject*)obj forField:(NSString*)key {
+    return [self setRawValue:obj forField:key];
+}
+
+- (BOOL)setDate:(NSDate*)obj forField:(NSString*)key {
+    return [self setRawValue:obj forField:key];
+}
+
+- (BOOL)setRawValue:(id)obj forField:(NSString*)key {
     NSString* commandValue = [BBUtils stringFromObject:obj addEntity:NO];
     if (!commandValue) return NO;
     
@@ -252,7 +283,7 @@
     return YES;
 }
 
-- (BOOL)addReference:(BBObject*)object forField:(NSString*)key {
+- (BOOL)addObject:(BBObject*)object forField:(NSString*)key {
     if (!object.identifier) return NO;
     
     NSString* command = [NSString stringWithFormat:@"add-%@", key];
@@ -265,7 +296,7 @@
     return YES;
 }
 
-- (BOOL)removeReference:(BBObject*)object forField:(NSString*)key {
+- (BOOL)removeObject:(BBObject*)object forField:(NSString*)key {
     if (!object.identifier) return NO;
     
     NSString* command = [NSString stringWithFormat:@"rem-%@", key];
@@ -278,12 +309,8 @@
     return YES;
 }
 
-- (id)objectForField:(NSString*)key {
-    return [self._fields objectForKey:key];
-}
-
 - (void)removeField:(NSString*)key {
-    NSString* command = [NSString stringWithFormat:@"set-%@", key];
+    NSString* command = [NSString stringWithFormat:@"del-%@", key];
     [self._fields removeObjectForKey:key];
     [self._commands setObject:@"-" forKey:command]; // TODO, not tested. REST API could change
 }
@@ -393,9 +420,17 @@
 }
 
 - (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    return [self refresh:nil success:success failure:failure];
+}
+
+- (BOOL)refresh:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
     if (!self._entity || !self._identifier) { return NO; }
-    NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
-    [self._session perform:@"GET" path:path params:nil fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+    NSString *path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
+    NSDictionary *params = nil;
+    if (joins) {
+        params = [NSDictionary dictionaryWithObject:joins forKey:@"joins"];
+    }
+    [self._session perform:@"GET" path:path params:params fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             success(object);
         } failure:failure];

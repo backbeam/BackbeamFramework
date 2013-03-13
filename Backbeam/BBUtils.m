@@ -119,6 +119,8 @@
     NSString* value = nil;
     if ([obj isKindOfClass:[NSString class]]) {
         value = (NSString*)obj;
+    } else if ([obj isKindOfClass:[NSNumber class]]) {
+        value = [obj description];
     } else if ([obj isKindOfClass:[BBObject class]]) {
         BBObject* object = (BBObject*)obj;
         if (addEntity) {

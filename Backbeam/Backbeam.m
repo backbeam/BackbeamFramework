@@ -304,7 +304,7 @@
         }
         if (fetchPolicy == BBFetchPolicyLocalOnly) {
             if (!read) {
-                // TODO: failure
+                failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
             }
             return;
         }
@@ -365,7 +365,7 @@
             break;
         }
     }
-    NSLog(@"fileName %@ mimeType %@", fileName, mimeType);
+    // NSLog(@"fileName %@ mimeType %@", fileName, mimeType);
     
     NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:params constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
         [formData appendPartWithFileData:data name:@"file" fileName:fileName mimeType:mimeType];
@@ -548,10 +548,13 @@
     return [self.basePath stringByAppendingPathComponent:@"user"];
 }
 
-- (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+- (void)loginWithEmail:(NSString*)email password:(NSString*)password join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
     NSMutableDictionary* body = [[NSMutableDictionary alloc] init];
     [body setObject:email forKey:@"email"];
     [body setObject:password forKey:@"password"];
+    if (joins) {
+        [body setObject:joins forKey:@"joins"];
+    }
     
     [self perform:@"POST" path:@"/user/email/login" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -570,19 +573,24 @@
             return;
         }
         
-        BBObject* user = nil;
-        NSDictionary* values = [result dictionaryForKey:@"objects"];
-        NSString* identifier = [result stringForKey:@"id"];
-        NSString* auth = [result stringForKey:@"auth"];
-        if (values && identifier && auth) {
-            NSMutableDictionary* refs = [BBObject objectsWithSession:self values:values references:nil];
-            user = [refs objectForKey:identifier];
-            [self setCurrentUser:user withAuthCode:auth];
-        }
+        BBObject *user = [self loginEmailWithResponse:result];
         success(user);
     } failure:^(id result, NSError* error) {
         failure([BBError errorWithResult:result error:error]);
     }];
+}
+
+- (BBObject*)loginEmailWithResponse:(NSDictionary*)result {
+    BBObject* user = nil;
+    NSDictionary* values = [result dictionaryForKey:@"objects"];
+    NSString* identifier = [result stringForKey:@"id"];
+    NSString* auth = [result stringForKey:@"auth"];
+    if (values && identifier && auth) {
+        NSMutableDictionary* refs = [BBObject objectsWithSession:self values:values references:nil];
+        user = [refs objectForKey:identifier];
+        [self setCurrentUser:user withAuthCode:auth];
+    }
+    return user;
 }
 
 - (void)requestPasswordResetWithEmail:(NSString*)email success:(SuccessBlock)success failure:(FailureBlock)failure {
@@ -604,6 +612,35 @@
             return;
         }
         success();
+    } failure:^(id result, NSError* error) {
+        failure([BBError errorWithResult:result error:error]);
+    }];
+}
+
+- (void)verifyCode:(NSString*)code join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    NSMutableDictionary* body = [NSMutableDictionary dictionaryWithObject:code forKey:@"code"];
+    if (joins) {
+        [body setObject:joins forKey:@"joins"];
+    }
+    [self perform:@"POST" path:@"/user/email/verify" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        NSString* status = [result stringForKey:@"status"];
+        if (!status) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        
+        if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
+            failure([BBError errorWithStatus:status result:result]);
+            return;
+        }
+        
+        BBObject *user = [self loginEmailWithResponse:result];
+        success(user);
     } failure:^(id result, NSError* error) {
         failure([BBError errorWithResult:result error:error]);
     }];
@@ -671,6 +708,17 @@
 
 - (BBObject*)emptyObjectForEntity:(NSString*)entity withIdentifier:(NSString*)identifier {
     return [[BBObject alloc] initWith:self entity:entity identifier:identifier];
+}
+
+- (BBObject*)readObject:(NSString*)entity
+         withIdentifier:(NSString*)identifier
+                   join:(NSString*)joins
+                success:(SuccessObjectBlock)success
+                failure:(FailureObjectBlock)failure {
+    
+    BBObject *object = [self emptyObjectForEntity:entity withIdentifier:identifier];
+    [object refresh:joins success:success failure:failure];
+    return object;
 }
 
 + (BackbeamSession*)instance {
@@ -742,9 +790,12 @@
     [[BackbeamSession instance] logout];
 }
 
-// TODO: login with joins. JoinResult should implemente NSCoding
++ (void)loginWithEmail:(NSString*)email password:(NSString*)password join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    [[BackbeamSession instance] loginWithEmail:email password:password join:joins success:success failure:failure];
+}
+
 + (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
-    [[BackbeamSession instance] loginWithEmail:email password:password success:success failure:failure];
+    [[BackbeamSession instance] loginWithEmail:email password:password join:nil success:success failure:failure];
 }
 
 + (void)facebookSignupWithAccessToken:(NSString*)accessToken
@@ -761,6 +812,14 @@
     return [[BackbeamSession instance] requestPasswordResetWithEmail:email success:success failure:failure];
 }
 
++ (void)verifyCode:(NSString*)code success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    return [[BackbeamSession instance] verifyCode:code join:nil success:success failure:failure];
+}
+
++ (void)verifyCode:(NSString*)code join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    return [[BackbeamSession instance] verifyCode:code join:joins success:success failure:failure];
+}
+
 + (BBObject*)emptyObjectForEntity:(NSString*)entity {
     return [[BackbeamSession instance] emptyObjectForEntity:entity];
 }
@@ -768,6 +827,23 @@
 + (BBObject*)emptyObjectForEntity:(NSString*)entity withIdentifier:(NSString*)identifier {
     return [[BackbeamSession instance] emptyObjectForEntity:entity withIdentifier:identifier];
 }
+
++ (BBObject*)readObject:(NSString*)entity
+         withIdentifier:(NSString*)identifier
+                   join:(NSString*)joins
+                success:(SuccessObjectBlock)success
+                failure:(FailureObjectBlock)failure {
+    return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:joins success:success failure:failure];
+}
+
++ (BBObject*)readObject:(NSString*)entity
+         withIdentifier:(NSString*)identifier
+                success:(SuccessObjectBlock)success
+                failure:(FailureObjectBlock)failure {
+    return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:nil success:success failure:failure];
+}
+
+
 
 + (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
     return [[BackbeamSession instance] subscribeToEvents:event delegate:delegate];

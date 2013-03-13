@@ -100,6 +100,17 @@
 + (BBObject*)emptyObjectForEntity:(NSString*)entity
                    withIdentifier:(NSString*)identifier;
 
++ (BBObject*)readObject:(NSString*)entity
+         withIdentifier:(NSString*)identifier
+                   join:(NSString*)joins
+                success:(SuccessObjectBlock)success
+                failure:(FailureObjectBlock)failure;
+
++ (BBObject*)readObject:(NSString*)entity
+         withIdentifier:(NSString*)identifier
+                success:(SuccessObjectBlock)success
+                failure:(FailureObjectBlock)failure;
+
 + (BOOL)subscribeToChannels:(NSArray*)channels
                     success:(SuccessBlock)success
                     failure:(FailureBlock)failure;
@@ -130,9 +141,24 @@
                success:(SuccessObjectBlock)success
                failure:(FailureBlock)failure;
 
++ (void)loginWithEmail:(NSString*)email
+              password:(NSString*)password
+                  join:(NSString*)joins
+               success:(SuccessObjectBlock)success
+               failure:(FailureBlock)failure;
+
 + (void)requestPasswordResetWithEmail:(NSString*)email
                               success:(SuccessBlock)success
                               failure:(FailureBlock)failure;
+
++ (void)verifyCode:(NSString*)code
+           success:(SuccessObjectBlock)success
+           failure:(FailureBlock)failure;
+
++ (void)verifyCode:(NSString*)code
+              join:(NSString*)joins
+           success:(SuccessObjectBlock)success
+           failure:(FailureBlock)failure;
 
 + (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate;
 
