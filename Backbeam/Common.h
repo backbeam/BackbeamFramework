@@ -32,6 +32,7 @@ typedef void(^SuccessImageBlock)(UIImage* img);
 
 typedef void(^SuccessQueryBlock)(NSArray* objects, NSInteger totalCount, BOOL fromCache);
 typedef void(^FailureQueryBlock)(NSError* err);
+typedef void(^SuccessNearQueryBlock)(NSArray *objects, NSInteger totalCount, NSArray *distances, BOOL fromCache);
 
 typedef void(^SuccessObjectBlock)(BBObject* object);
 typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);

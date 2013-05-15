@@ -15,7 +15,7 @@
 @property (nonatomic, strong) NSString* _cursor; // to call [self next]
 @property (nonatomic, strong) NSString* _entity;
 @property (nonatomic, strong) NSString* _query;
-@property (nonatomic, strong) NSMutableArray* _parameters;
+@property (nonatomic, strong) NSArray* _parameters;
 @property (nonatomic, assign) BBFetchPolicy _fetchPolicy;
 @property (nonatomic, strong) BackbeamSession* _session;
 
@@ -42,10 +42,7 @@
 - (void)setQuery:(NSString*)query withParams:(NSArray*)params {
     self._query = query;
     self._cursor = nil;
-    [self._parameters removeAllObjects];
-    for (id param in params) {
-        [self._parameters addObject:[BBUtils stringFromObject:param addEntity:YES]];
-    }
+    self._parameters = [BBUtils stringsFromParams:params];
     self._cursor = nil;
 }
 
@@ -58,12 +55,141 @@
     NSMutableDictionary* params = [[NSMutableDictionary alloc] init];
     if (self._query) {
         [params setObject:self._query forKey:@"q"];
-    }
-    if (self._parameters) {
-        [params setObject:self._parameters forKey:@"params"];
+        if (self._parameters) {
+            [params setObject:self._parameters forKey:@"params"];
+        }
     }
     [params setObject:[NSString stringWithFormat:@"%d", limit]  forKey:@"limit"];
     [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
+    
+    [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSDictionary* objects = [result dictionaryForKey:@"objects"];
+        if (!objects) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableDictionary* refs = [BBObject objectsWithSession:self._session values:objects references:nil];
+        NSArray* ids = [result arrayForKey:@"ids"];
+        if (!ids) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
+        for (NSString* identifier in ids) {
+            BBObject* obj = [refs objectForKey:identifier];
+            if (obj) { // should always exist
+                [arr addObject:obj];
+            }
+        }
+        NSNumber* totalCount = [result numberForKey:@"count"];
+        
+        success(arr, totalCount.integerValue, fromCache);
+    } failure:^(id result, NSError* error) {
+        if (result) {
+            if (![result isKindOfClass:[NSDictionary class]]) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                return;
+            }
+            NSString* status = [result stringForKey:@"status"];
+            if (![status isEqualToString:@"Success"]) {
+                failure([BBError errorWithStatus:status result:result]);
+                return;
+            }
+        } else {
+            failure(error);
+        }
+    }];
+}
+
+- (void)near:(NSString*)field
+         lat:(double)lat
+         lon:(double)lon
+       limit:(NSInteger)limit
+     success:(SuccessNearQueryBlock)success
+     failure:(FailureQueryBlock)failure {
+    
+    NSString* path = [NSString stringWithFormat:@"/data/%@/near/%@", self._entity, field];
+    NSMutableDictionary* params = [[NSMutableDictionary alloc] init];
+    if (self._query) {
+        [params setObject:self._query forKey:@"q"];
+        if (self._parameters) {
+            [params setObject:self._parameters forKey:@"params"];
+        }
+    }
+    [params setObject:[NSString stringWithFormat:@"%f", lat]   forKey:@"lat"];
+    [params setObject:[NSString stringWithFormat:@"%f", lon]   forKey:@"lon"];
+    [params setObject:[NSString stringWithFormat:@"%d", limit] forKey:@"limit"];
+    
+    [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSDictionary* objects = [result dictionaryForKey:@"objects"];
+        if (!objects) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableDictionary* refs = [BBObject objectsWithSession:self._session values:objects references:nil];
+        NSArray* ids = [result arrayForKey:@"ids"];
+        if (!ids) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
+        for (NSString* identifier in ids) {
+            BBObject* obj = [refs objectForKey:identifier];
+            if (obj) { // should always exist
+                [arr addObject:obj];
+            }
+        }
+        NSNumber* totalCount = [result numberForKey:@"count"];
+        NSArray *distances = [result arrayForKey:@"distances"];
+        
+        success(arr, totalCount.integerValue, distances, fromCache);
+    } failure:^(id result, NSError* error) {
+        if (result) {
+            if (![result isKindOfClass:[NSDictionary class]]) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                return;
+            }
+            NSString* status = [result stringForKey:@"status"];
+            if (![status isEqualToString:@"Success"]) {
+                failure([BBError errorWithStatus:status result:result]);
+                return;
+            }
+        } else {
+            failure(error);
+        }
+    }];
+}
+
+- (void)bounding:(NSString*)field
+           swlat:(double)swlat
+           swlon:(double)swlon
+           nelat:(double)nelat
+           nelon:(double)nelon
+           limit:(NSInteger)limit
+         success:(SuccessQueryBlock)success
+         failure:(FailureQueryBlock)failure {
+    
+    NSString* path = [NSString stringWithFormat:@"/data/%@/bounding/%@", self._entity, field];
+    NSMutableDictionary* params = [[NSMutableDictionary alloc] init];
+    if (self._query) {
+        [params setObject:self._query forKey:@"q"];
+        if (self._parameters) {
+            [params setObject:self._parameters forKey:@"params"];
+        }
+    }
+    [params setObject:[NSString stringWithFormat:@"%f", swlat] forKey:@"swlat"];
+    [params setObject:[NSString stringWithFormat:@"%f", swlon] forKey:@"swlon"];
+    [params setObject:[NSString stringWithFormat:@"%f", nelat] forKey:@"nelat"];
+    [params setObject:[NSString stringWithFormat:@"%f", nelon] forKey:@"nelon"];
+    [params setObject:[NSString stringWithFormat:@"%d", limit] forKey:@"limit"];
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {

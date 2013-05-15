@@ -115,6 +115,14 @@
     return hmac;
 }
 
++ (NSArray*)stringsFromParams:(NSArray*)params {
+    NSMutableArray *arr = [[NSMutableArray alloc] initWithCapacity:params.count];
+    for (id param in params) {
+        [arr addObject:[BBUtils stringFromObject:param addEntity:YES]];
+    }
+    return arr;
+}
+
 + (NSString*)stringFromObject:(id)obj addEntity:(BOOL)addEntity {
     NSString* value = nil;
     if ([obj isKindOfClass:[NSString class]]) {

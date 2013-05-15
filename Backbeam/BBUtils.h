@@ -20,6 +20,7 @@
 + (NSData*)sha1:(NSData*)rawData;
 + (NSData*)hmacSha1:(NSData*)data withKey:(NSData*)key;
 
++ (NSArray*)stringsFromParams:(NSArray*)params;
 + (NSString*)stringFromObject:(id)obj addEntity:(BOOL)addEntity;
 
 + (NSString*)nonce;

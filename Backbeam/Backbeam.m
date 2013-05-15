@@ -262,6 +262,8 @@
     if (self.authCode) {
         [params setObject:self.authCode forKey:@"auth"];
     }
+    [params setObject:httpMethod forKey:@"method"];
+    [params setObject:path forKey:@"path"];
     
     NSMutableString* parameterString = [[NSMutableString alloc] init];
     NSMutableString* cacheKeyString = [[NSMutableString alloc] initWithString:httpMethod]; // only GET requests should be cached
@@ -313,6 +315,8 @@
     NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
     NSString* signature = [hmac base64EncodedString];
     [params setObject:signature forKey:@"signature"];
+    [params removeObjectForKey:@"method"];
+    [params removeObjectForKey:@"path"];
     
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
@@ -548,12 +552,15 @@
     return [self.basePath stringByAppendingPathComponent:@"user"];
 }
 
-- (void)loginWithEmail:(NSString*)email password:(NSString*)password join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+- (void)loginWithEmail:(NSString*)email password:(NSString*)password join:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
     NSMutableDictionary* body = [[NSMutableDictionary alloc] init];
     [body setObject:email forKey:@"email"];
     [body setObject:password forKey:@"password"];
     if (joins) {
         [body setObject:joins forKey:@"joins"];
+        if (params) {
+            [body setObject:[BBUtils stringsFromParams:params] forKey:@"params"];
+        }
     }
     
     [self perform:@"POST" path:@"/user/email/login" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
@@ -617,10 +624,13 @@
     }];
 }
 
-- (void)verifyCode:(NSString*)code join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+- (void)verifyCode:(NSString*)code join:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
     NSMutableDictionary* body = [NSMutableDictionary dictionaryWithObject:code forKey:@"code"];
     if (joins) {
         [body setObject:joins forKey:@"joins"];
+        if (params) {
+            [body setObject:[BBUtils stringsFromParams:params] forKey:@"params"];
+        }
     }
     [self perform:@"POST" path:@"/user/email/verify" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -698,6 +708,27 @@
 
 }
 
+- (void)facebookSignupWithAccessToken:(NSString*)accessToken
+                                 join:(NSString*)join
+                               params:(NSArray*)params
+                              success:(SuccessFacebookBlock)success
+                              failure:(FailureFacebookBlock)failure {
+    
+    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
+    if (join) {
+        [postParams setObject:join forKey:@"joins"];
+        if (params) {
+            [postParams setObject:params forKey:@"params"];
+        }
+    }
+    [self socialSignup:@"facebook" params:postParams success:^(BBObject* user, BOOL isNew) {
+        success(user, isNew);
+    } failure:^(NSError* err) {
+        failure(err);
+    }];
+    
+}
+
 - (BBQuery*)queryForEntity:(NSString*)entity {
     return [[BBQuery alloc] initWith:self entity:entity];
 }
@@ -713,11 +744,12 @@
 - (BBObject*)readObject:(NSString*)entity
          withIdentifier:(NSString*)identifier
                    join:(NSString*)joins
+                 params:(NSArray*)params
                 success:(SuccessObjectBlock)success
                 failure:(FailureObjectBlock)failure {
     
     BBObject *object = [self emptyObjectForEntity:entity withIdentifier:identifier];
-    [object refresh:joins success:success failure:failure];
+    [object refresh:joins params:params success:success failure:failure];
     return object;
 }
 
@@ -790,18 +822,27 @@
     [[BackbeamSession instance] logout];
 }
 
-+ (void)loginWithEmail:(NSString*)email password:(NSString*)password join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
-    [[BackbeamSession instance] loginWithEmail:email password:password join:joins success:success failure:failure];
++ (void)loginWithEmail:(NSString*)email password:(NSString*)password join:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    [[BackbeamSession instance] loginWithEmail:email password:password join:joins params:(NSArray*)params success:success failure:failure];
 }
 
 + (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
-    [[BackbeamSession instance] loginWithEmail:email password:password join:nil success:success failure:failure];
+    [[BackbeamSession instance] loginWithEmail:email password:password join:nil params:nil success:success failure:failure];
 }
 
 + (void)facebookSignupWithAccessToken:(NSString*)accessToken
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure {
     [[BackbeamSession instance] facebookSignupWithAccessToken:accessToken success:success failure:failure];
+}
+
+
++ (void)facebookSignupWithAccessToken:(NSString*)accessToken
+                                 join:(NSString*)join
+                               params:(NSArray*)params
+                              success:(SuccessFacebookBlock)success
+                              failure:(FailureFacebookBlock)failure {
+    [[BackbeamSession instance] facebookSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
 }
 
 + (BBQuery*)queryForEntity:(NSString*)entity {
@@ -813,11 +854,11 @@
 }
 
 + (void)verifyCode:(NSString*)code success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
-    return [[BackbeamSession instance] verifyCode:code join:nil success:success failure:failure];
+    return [[BackbeamSession instance] verifyCode:code join:nil params:nil success:success failure:failure];
 }
 
-+ (void)verifyCode:(NSString*)code join:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
-    return [[BackbeamSession instance] verifyCode:code join:joins success:success failure:failure];
++ (void)verifyCode:(NSString*)code join:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
+    return [[BackbeamSession instance] verifyCode:code join:joins params:nil success:success failure:failure];
 }
 
 + (BBObject*)emptyObjectForEntity:(NSString*)entity {
@@ -831,16 +872,17 @@
 + (BBObject*)readObject:(NSString*)entity
          withIdentifier:(NSString*)identifier
                    join:(NSString*)joins
+                 params:(NSArray*)params
                 success:(SuccessObjectBlock)success
                 failure:(FailureObjectBlock)failure {
-    return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:joins success:success failure:failure];
+    return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:joins params:params success:success failure:failure];
 }
 
 + (BBObject*)readObject:(NSString*)entity
          withIdentifier:(NSString*)identifier
                 success:(SuccessObjectBlock)success
                 failure:(FailureObjectBlock)failure {
-    return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:nil success:success failure:failure];
+    return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:nil params:nil success:success failure:failure];
 }
 
 

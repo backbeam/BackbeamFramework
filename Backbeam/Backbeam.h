@@ -93,6 +93,12 @@
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure;
 
++ (void)facebookSignupWithAccessToken:(NSString*)accessToken
+                                 join:(NSString*)join
+                               params:(NSArray*)params
+                              success:(SuccessFacebookBlock)success
+                              failure:(FailureFacebookBlock)failure;
+
 + (BBQuery*)queryForEntity:(NSString*)entity;
 
 + (BBObject*)emptyObjectForEntity:(NSString*)entity;
@@ -103,6 +109,7 @@
 + (BBObject*)readObject:(NSString*)entity
          withIdentifier:(NSString*)identifier
                    join:(NSString*)joins
+                 params:(NSArray*)params
                 success:(SuccessObjectBlock)success
                 failure:(FailureObjectBlock)failure;
 
@@ -144,6 +151,7 @@
 + (void)loginWithEmail:(NSString*)email
               password:(NSString*)password
                   join:(NSString*)joins
+                params:(NSArray*)params
                success:(SuccessObjectBlock)success
                failure:(FailureBlock)failure;
 
@@ -157,6 +165,7 @@
 
 + (void)verifyCode:(NSString*)code
               join:(NSString*)joins
+            params:(NSArray*)params
            success:(SuccessObjectBlock)success
            failure:(FailureBlock)failure;
 

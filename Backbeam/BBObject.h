@@ -103,6 +103,7 @@
         failure:(FailureObjectBlock)failure;
 
 - (BOOL)refresh:(NSString*)joins
+         params:(NSArray*)params
         success:(SuccessObjectBlock)success
         failure:(FailureObjectBlock)failure;
 

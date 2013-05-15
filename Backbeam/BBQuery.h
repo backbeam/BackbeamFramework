@@ -27,6 +27,22 @@
       success:(SuccessQueryBlock)success
       failure:(FailureQueryBlock)failure;
 
+- (void)near:(NSString*)field
+         lat:(double)lat
+         lon:(double)lon
+       limit:(NSInteger)limit
+     success:(SuccessNearQueryBlock)success
+     failure:(FailureQueryBlock)failure;
+
+- (void)bounding:(NSString*)field
+           swlat:(double)swlat
+           swlon:(double)swlon
+           nelat:(double)nelat
+           nelon:(double)nelon
+           limit:(NSInteger)limit
+         success:(SuccessQueryBlock)success
+         failure:(FailureQueryBlock)failure;
+
 - (void)next:(NSInteger)limit;
 
 - (void)setFetchPolicy:(BBFetchPolicy)fetchPolicy;

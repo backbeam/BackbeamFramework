@@ -137,8 +137,11 @@
                     NSString* _id = [dict stringForKey:@"id"];
                     NSString* _type = [dict stringForKey:@"type"];
                     if (_id && _type) {
-                        BBObject* obj = [Backbeam emptyObjectForEntity:_type withIdentifier:_id];
-                        value = obj;
+                        value = [references objectForKey:value];
+                        if (!value) {
+                            BBObject* obj = [Backbeam emptyObjectForEntity:_type withIdentifier:_id];
+                            value = obj;
+                        }
                     } else {
                         BBJoinResult* result = [[BBJoinResult alloc] init];
                         result.count = [dict numberForKey:@"count"].integerValue;
@@ -420,17 +423,21 @@
 }
 
 - (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    return [self refresh:nil success:success failure:failure];
+    return [self refresh:nil params:nil success:success failure:failure];
 }
 
-- (BOOL)refresh:(NSString*)joins success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+- (BOOL)refresh:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
     if (!self._entity || !self._identifier) { return NO; }
     NSString *path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
-    NSDictionary *params = nil;
+    NSMutableDictionary *prms = nil;
     if (joins) {
-        params = [NSDictionary dictionaryWithObject:joins forKey:@"joins"];
+        prms = [[NSMutableDictionary alloc] initWithCapacity:2];
+        [prms setObject:joins forKey:@"joins"];
+        if (params) {
+            [prms setObject:[BBUtils stringsFromParams:params] forKey:@"params"];
+        }
     }
-    [self._session perform:@"GET" path:path params:params fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+    [self._session perform:@"GET" path:path params:prms fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             success(object);
         } failure:failure];
