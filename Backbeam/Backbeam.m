@@ -23,23 +23,6 @@
 // If you want to turn ARC on only for Backbeam files, add -fobjc-arc to the build phase for each of its files.
 #endif
 
-@interface BBWeakObject : NSObject
-
-@property (nonatomic, weak) id object;
-
-@end
-
-@implementation BBWeakObject
-
-- (id)initWithObject:(id)obj;
-{
-    if (self = [super init]) {
-        self.object = obj;
-    }
-    return self;
-}
-@end
-
 @interface BackbeamSession ()
 
 @property (nonatomic, strong) AFHTTPClient* client;
@@ -66,9 +49,10 @@
 
 @property (nonatomic, strong) NSDictionary* knownMimeTypes;
 
-@property (nonatomic, strong) NSMutableDictionary* roomDelegates;
-
-@property (nonatomic, strong) SocketIO* socketio;
+@property (nonatomic, strong) NSMutableDictionary *roomDelegates;
+@property (nonatomic, strong) NSMutableArray *realTimeDelegates;
+@property (nonatomic, strong) SocketIO *socketio;
+@property (nonatomic, assign) NSInteger delay;
 
 @end
 
@@ -81,6 +65,7 @@
 #define kDeviceTokenPathComponent @"deviceToken"
 
 - (id)init {
+    self.delay = 0;
     return nil;
 }
 
@@ -115,6 +100,7 @@
         self.queryCache = [[BBCache alloc] initWithDirectory:path maxSize:1024*1024*10];
 
         self.roomDelegates = [[NSMutableDictionary alloc] init];
+        self.realTimeDelegates = [[NSMutableArray alloc] init];
     }
     return self;
 }
@@ -132,45 +118,88 @@
     NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d",
                      self.env, self.project, self.host, self.port];
     self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
-    
+}
+
+- (void)connect {
+    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
+        [delegate realTimeConnecting];
+    }
     self.socketio = [[SocketIO alloc] initWithDelegate:self];
     [self.socketio connectToHost:self.host onPort:self.port];
 }
 
-- (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
+- (void)enableRealTime {
+    if (self.socketio && !self.socketio.isConnected && !self.socketio.isConnecting) {
+        self.socketio.delegate = nil;
+        self.socketio = nil;
+    }
+    self.delay = 0;
+    [self connect];
+}
+
+- (void)connectAfterDelay {
+    if (self.socketio && (self.socketio.isConnecting || self.socketio.isConnected)) {
+        return;
+    }
+    
+    static NSInteger maxDelay = 10;
+    
+    self.delay++;
+    if (self.delay >= maxDelay) {
+        self.delay = maxDelay;
+    }
+    
+    double delayInSeconds = self.delay;
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        [self connect];
+    });
+}
+
+- (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {
     NSString* room = [self roomName:event];
     NSMutableArray* delegates = (NSMutableArray*)[self.roomDelegates arrayForKey:room];
     if (!delegates) {
         delegates = [[NSMutableArray alloc] init];
         [self.roomDelegates setObject:delegates forKey:room];
     }
-    [delegates addObject:[[BBWeakObject alloc] initWithObject:delegate]];
+    [delegates addObject:delegate];
     if (!self.socketio) return NO;
-    // TODO: check if it works if is not already connected
-    [self.socketio sendEvent:@"subscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", nil]];
+    
+    if (self.socketio.isConnected) {
+        NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
+        [self sign:params];
+        [self.socketio sendEvent:@"subscribe" withData:params];
+    }
     return YES;
 }
 
-- (BOOL)unsubscribeFromEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
+- (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {
     NSString* room = [self roomName:event];
     NSMutableArray* delegates = (NSMutableArray*)[self.roomDelegates arrayForKey:room];
     if (!delegates) return NO;
-    for (BBWeakObject* obj in delegates) {
-        if (obj.object == delegate) {
-            [delegates removeObject:obj];
-            break;
-        }
+    [delegates removeObject:delegate];
+    if (delegates.count == 0) {
+        [self.roomDelegates removeObjectForKey:room];
     }
-    if (!self.socketio) return NO;
-    // TODO: check if it works if is not already connected
-    [self.socketio sendEvent:@"unsubscribe" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", nil]];
+    if (self.socketio.isConnected && delegates.count == 0) {
+        NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
+        [self sign:params];
+        [self.socketio sendEvent:@"unsubscribe" withData:params];
+    }
     return YES;
 }
 
-- (BOOL)sendEvent:(NSString*)event message:(NSDictionary*)message {
+- (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message {
     if (!self.socketio) return NO;
     NSString* room = [self roomName:event];
-    [self.socketio sendEvent:@"publish" withData:[NSDictionary dictionaryWithObjectsAndKeys:room, @"room", message, @"data", nil]];
+    NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
+    for (id key in message.allKeys) {
+        NSString *_key = [NSString stringWithFormat:@"_%@", key];
+        [params setObject:[message objectForKey:key] forKey:_key];
+    }
+    [self sign:params];
+    [self.socketio sendEvent:@"publish" withData:params];
     return YES;
 }
 
@@ -179,20 +208,29 @@
 }
 
 - (void)socketIODidConnect:(SocketIO *)socket {
-    NSLog(@"socketIODidConnect");
+    self.delay = 0;
+    for (NSString *room in self.roomDelegates) {
+        NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
+        [self sign:params];
+        [self.socketio sendEvent:@"subscribe" withData:params];
+    }
+    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
+        [delegate realTimeConnected];
+    }
 }
 
 - (void)socketIODidDisconnect:(SocketIO *)socket {
-    // TODO: subscribe to events again
-    NSLog(@"socketIODidDisconnect");
+    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
+        [delegate realTimeDisconnected];
+    }
+    self.delay = 0;
+    [self connectAfterDelay];
 }
 
 - (void)socketIO:(SocketIO *)socket didReceiveMessage:(SocketIOPacket *)packet {
-    NSLog(@"didReceiveMessage %@", packet);
 }
 
 - (void)socketIO:(SocketIO *)socket didReceiveJSON:(SocketIOPacket *)packet {
-    NSLog(@"didReceiveJSON");
 }
 
 - (void)socketIO:(SocketIO *)socket didReceiveEvent:(SocketIOPacket *)packet {
@@ -205,35 +243,49 @@
         }
         if ([dict isKindOfClass:[NSDictionary class]]) {
             NSString* room = [dict stringForKey:@"room"];
-            NSDictionary* data = [dict dictionaryForKey:@"data"];
-            if (room && data) {
+            if (room) {
                 NSString* prefix = [self roomName:@""];
                 if ([room hasPrefix:prefix]) {
+                    NSMutableDictionary *data = [[NSMutableDictionary alloc] initWithCapacity:dict.count];
+                    for (id key in dict) {
+                        if ([key hasPrefix:@"_"]) {
+                            [data setObject:[dict objectForKey:key] forKey:[key substringFromIndex:1]];
+                        }
+                    }
                     NSString* event = [room substringFromIndex:prefix.length];
                     NSArray* delegates = [self.roomDelegates arrayForKey:room];
-                    for (BBWeakObject* obj in delegates) {
-                        id<BBEventDelegate> delegate = obj.object;
-                        if (delegate) {
-                            [delegate eventReceived:event message:data];
-                        }
+                    for (id<BBRealTimeEventDelegate> delegate in delegates) {
+                        [delegate realTimeEventReceived:event message:data];
                     }
                 }
             }
         }
     }
-    // NSLog(@"didReceiveEvent %@", result);
 }
 
 - (void)socketIO:(SocketIO *)socket didSendMessage:(SocketIOPacket *)packet {
-    // NSLog(@"didSendMessage");
 }
 
 - (void)socketIOHandshakeFailed:(SocketIO *)socket {
-    NSLog(@"socketIOHandshakeFailed");
+    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
+        [delegate realTimeConnectionFailed:[BBError errorWithStatus:@"HandshakeFailed" result:nil]];
+    }
+    [self connectAfterDelay];
 }
 
 - (void)socketIO:(SocketIO *)socket failedToConnectWithError:(NSError *)error {
-    NSLog(@"failedToConnectWithError");
+    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
+        [delegate realTimeConnectionFailed:error];
+    }
+    [self connectAfterDelay];
+}
+
+- (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate {
+    [self.realTimeDelegates addObject:delegate];
+}
+
+- (void)unsubscribeFromRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate {
+    [self.realTimeDelegates removeObject:delegate];
 }
 
 - (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
@@ -248,26 +300,13 @@
     return vc;
 }
 
-- (void)perform:(NSString*)httpMethod
-           path:(NSString*)path
-         params:(NSDictionary*)_params
-    fetchPolicy:(BBFetchPolicy)fetchPolicy
-        success:(SuccessOperationBlock)success
-        failure:(FailureOperationBlock)failure {
-    
-    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithDictionary:_params];
+- (NSString*)sign:(NSMutableDictionary*)params {
     [params setObject:[BBUtils nonce] forKey:@"nonce"];
     [params setObject:self.sharedKey forKey:@"key"];
     [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
-    if (self.authCode) {
-        [params setObject:self.authCode forKey:@"auth"];
-    }
-    [params setObject:httpMethod forKey:@"method"];
-    [params setObject:path forKey:@"path"];
     
     NSMutableString* parameterString = [[NSMutableString alloc] init];
-    NSMutableString* cacheKeyString = [[NSMutableString alloc] initWithString:httpMethod]; // only GET requests should be cached
-    [cacheKeyString appendString:path];
+    NSMutableString* cacheKeyString = [[NSMutableString alloc] init];
     NSArray* sortedKeys = [[params allKeys] sortedArrayUsingSelector:@selector(compare:)];
     for (NSString* key in sortedKeys) {
         id value = [params objectForKey:key];
@@ -285,6 +324,32 @@
         }
     }
     [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
+    
+    NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
+    NSString* signature = [hmac base64EncodedString];
+    [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
+    [params setObject:signature forKey:@"signature"];
+    
+    return cacheKeyString;
+}
+
+- (void)perform:(NSString*)httpMethod
+           path:(NSString*)path
+         params:(NSDictionary*)_params
+    fetchPolicy:(BBFetchPolicy)fetchPolicy
+        success:(SuccessOperationBlock)success
+        failure:(FailureOperationBlock)failure {
+    
+    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithDictionary:_params];
+    [params setObject:httpMethod forKey:@"method"];
+    [params setObject:path forKey:@"path"];
+    if (self.authCode) {
+        [params setObject:self.authCode forKey:@"auth"];
+    }
+    
+    NSString *cacheKeyString = [self sign:params];
+    [params removeObjectForKey:@"method"];
+    [params removeObjectForKey:@"path"];
     
     NSString* cacheKey = nil;
     BOOL useCache    = fetchPolicy == BBFetchPolicyLocalOnly
@@ -311,12 +376,6 @@
             return;
         }
     }
-    
-    NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
-    NSString* signature = [hmac base64EncodedString];
-    [params setObject:signature forKey:@"signature"];
-    [params removeObjectForKey:@"method"];
-    [params removeObjectForKey:@"path"];
     
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
@@ -689,9 +748,8 @@
         BBObject* user = [objects objectForKey:identifier];
         [self setCurrentUser:user withAuthCode:auth];
         success(user, isNew);
-    } failure:^(id result, NSError* err) {
-        // TODO: check result
-        failure(err);
+    } failure:^(id result, NSError* error) {
+        failure([BBError errorWithResult:result error:error]);
     }];
 }
 
@@ -885,18 +943,28 @@
     return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:nil params:nil success:success failure:failure];
 }
 
-
-
-+ (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
-    return [[BackbeamSession instance] subscribeToEvents:event delegate:delegate];
++ (void)enableRealTime {
+    [[BackbeamSession instance] enableRealTime];
 }
 
-+ (BOOL)unsubscribeFromEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate {
-    return [[BackbeamSession instance] unsubscribeFromEvents:event delegate:delegate];
++ (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {
+    return [[BackbeamSession instance] subscribeToRealTimeEvents:event delegate:delegate];
 }
 
-+ (BOOL)sendEvent:(NSString*)event message:(NSDictionary*)message {
-    return [[BackbeamSession instance] sendEvent:event message:message];
++ (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {
+    return [[BackbeamSession instance] unsubscribeFromRealTimeEvents:event delegate:delegate];
+}
+
++ (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate {
+    [[BackbeamSession instance] subscribeToRealTimeConnectionEvents:delegate];
+}
+
++ (void)unsubscribeFromRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate {
+    [[BackbeamSession instance] unsubscribeFromRealTimeConnectionEvents:delegate];
+}
+
++ (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message {
+    return [[BackbeamSession instance] sendRealTimeEvent:event message:message];
 }
 
 @end

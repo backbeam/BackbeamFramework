@@ -21,13 +21,25 @@
 @class BBQuery;
 @class BBTwitterLoginViewController;
 
-@protocol BBEventDelegate <NSObject>
+@protocol BBRealTimeConnectionDelegate <NSObject>
 
-- (void)eventReceived:(NSString*)event message:(NSObject*)message;
+- (void)realTimeConnected;
+
+- (void)realTimeConnecting;
+
+- (void)realTimeDisconnected;
+
+- (void)realTimeConnectionFailed:(NSError*)error;
 
 @end
 
-@interface BackbeamSession : NSObject  <SocketIODelegate>
+@protocol BBRealTimeEventDelegate <NSObject>
+
+- (void)realTimeEventReceived:(NSString*)event message:(NSDictionary*)message;
+
+@end
+
+@interface BackbeamSession : NSObject<SocketIODelegate>
 
 - (void)download:(NSMutableURLRequest*)request
         progress:(ProgressDataBlock)progress
@@ -169,10 +181,16 @@
            success:(SuccessObjectBlock)success
            failure:(FailureBlock)failure;
 
-+ (BOOL)subscribeToEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate;
++ (void)enableRealTime;
 
-+ (BOOL)unsubscribeFromEvents:(NSString*)event delegate:(id<BBEventDelegate>)delegate;
++ (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
 
-+ (BOOL)sendEvent:(NSString*)event message:(NSDictionary*)message;
++ (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
+
++ (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate;
+
++ (void)unsubscribeFromRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate;
+
++ (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message;
 
 @end

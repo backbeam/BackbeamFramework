@@ -17,6 +17,10 @@
     if (result) {
         [userInfo setObject:result forKey:@"result"];
     }
+    NSString* errorMessage = [result stringForKey:@"errorMessage"];
+    if (errorMessage) {
+        [userInfo setObject:errorMessage forKey:@"errorMessage"];
+    }
     BBError* err = [[BBError alloc] initWithDomain:kBackbeamErrorDomain code:1000 userInfo:userInfo];
     return err;
 }
@@ -31,9 +35,14 @@
         return [BBError errorWithError:error];
     }
     
+    NSString* errorMessage = [result stringForKey:@"errorMessage"];
+    
     NSMutableDictionary* userInfo = [[NSMutableDictionary alloc] initWithObjectsAndKeys:status, @"status", nil];
     if (result) {
         [userInfo setObject:result forKey:@"result"];
+    }
+    if (errorMessage) {
+        [userInfo setObject:errorMessage forKey:@"errorMessage"];
     }
     BBError* err = [[BBError alloc] initWithDomain:kBackbeamErrorDomain code:1000 userInfo:userInfo];
     return err;
@@ -49,8 +58,12 @@
 }
 
 - (NSString *)localizedDescription {
+    NSString* errorMessage = [self.userInfo objectForKey:@"errorMessage"];
     NSString* status = [self.userInfo objectForKey:@"status"];
     if (status) {
+        if (errorMessage) {
+            return [NSString stringWithFormat:@"Server responded with status %@ and errorMessage: %@", status, errorMessage];
+        }
         return [NSString stringWithFormat:@"Server responded with status %@", status];
     }
     NSError* rootError = [self.userInfo objectForKey:@"rootError"];
