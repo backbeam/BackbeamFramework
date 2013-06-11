@@ -29,6 +29,7 @@
 
 @property (nonatomic, strong) NSString* host;
 @property (nonatomic, assign) NSInteger port;
+@property (nonatomic, strong) NSString* _protocol;
 
 @property (nonatomic, strong) NSString* project;
 @property (nonatomic, strong) NSString* env;
@@ -101,6 +102,7 @@
 
         self.roomDelegates = [[NSMutableDictionary alloc] init];
         self.realTimeDelegates = [[NSMutableArray alloc] init];
+        self._protocol = @"http";
     }
     return self;
 }
@@ -110,13 +112,22 @@
     self.port = port;
 }
 
+- (void)setProtocol:(NSString *)protocol {
+    self._protocol = [protocol lowercaseString];
+    if ([self._protocol isEqualToString:@"https"]) {
+        self.port = 443;
+    } else {
+        self.port = 80;
+    }
+}
+
 - (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
     self.project   = project;
     self.sharedKey = sharedKey;
     self.secretKey = secretKey;
-    self.env = env;
-    NSString* url = [@"http://" stringByAppendingFormat:@"api.%@.%@.%@:%d",
-                     self.env, self.project, self.host, self.port];
+    self.env       = env;
+    NSString* url = [NSString stringWithFormat:@"%@://api-%@-%@.%@:%d",
+                     self._protocol, self.env, self.project, self.host, self.port];
     self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
 }
 
@@ -125,6 +136,9 @@
         [delegate realTimeConnecting];
     }
     self.socketio = [[SocketIO alloc] initWithDelegate:self];
+    if ([self._protocol isEqualToString:@"https"]) {
+        [self.socketio setUseSecure:YES];
+    }
     [self.socketio connectToHost:self.host onPort:self.port];
 }
 
@@ -965,6 +979,10 @@
 
 + (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message {
     return [[BackbeamSession instance] sendRealTimeEvent:event message:message];
+}
+
++ (void)setProtocol:(NSString *)protocol {
+    [[BackbeamSession instance] setProtocol:protocol];
 }
 
 @end

@@ -96,6 +96,8 @@
          secretKey:(NSString*)secretKey
        environment:(NSString*)env;
 
++ (void)setProtocol:(NSString *)protocol;
+
 + (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey
                consumerSecret:(NSString*)twitterConsumerSecret;
 
