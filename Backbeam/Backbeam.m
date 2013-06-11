@@ -315,9 +315,15 @@
 }
 
 - (NSString*)sign:(NSMutableDictionary*)params {
-    [params setObject:[BBUtils nonce] forKey:@"nonce"];
+    return [self sign:params withNonce:YES];
+}
+
+- (NSString*)sign:(NSMutableDictionary*)params withNonce:(BOOL)withNonce {
     [params setObject:self.sharedKey forKey:@"key"];
-    [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+    if (withNonce) {
+        [params setObject:[BBUtils nonce] forKey:@"nonce"];
+        [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+    }
     
     NSMutableString* parameterString = [[NSMutableString alloc] init];
     NSMutableString* cacheKeyString = [[NSMutableString alloc] init];
@@ -477,18 +483,22 @@
     NSString* height = [NSString stringWithFormat:@"%d", (int)(size.height*scale)];
     
     NSString* path = [NSString stringWithFormat:@"/data/file/download/%@/%@", identifier, version];
-    NSDictionary* params = [NSDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
+    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
+    [params setObject:@"GET" forKey:@"method"];
+    [params setObject:path forKey:@"path"];
+    NSString *cacheKey = [self sign:params withNonce:NO];
+    [params removeObjectForKey:@"method"];
+    [params removeObjectForKey:@"path"];
     NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
     
-    NSString* url = [req.URL description];
-    UIImage* img = [self.imageCache objectForKey:url];
+    UIImage* img = [self.imageCache objectForKey:cacheKey];
     if (img) return img;
     
     [self download:req progress:progress success:^(NSData* data) {
         UIImage* img = [UIImage imageWithData:data scale:scale];
         // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
         if (img) {
-            [self.imageCache setObject:img forKey:url];
+            [self.imageCache setObject:img forKey:cacheKey];
             success(img);
         } else {
             failure([BBError errorWithStatus:@"InvalidImage" result:nil]);
