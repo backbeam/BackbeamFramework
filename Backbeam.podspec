@@ -5,12 +5,12 @@ Pod::Spec.new do |s|
   s.homepage     = "http://backbeam.io/documentation-ios"
 
   s.license      = { :type => 'MIT (example)', :file => 'LICENSE' }
-  s.author       = { "Alberto Gimeno Brieba" => "gimenete@gmail.com" }
-  s.source       = { :git => "https://github.com/backbeam/BackbeamFramework.git", :tag => "0.0.1" }
+  s.author       = { "The Backbeam Team" => "contact@backbeam.io" }
+  s.source       = { :git => "https://github.com/backbeam/BackbeamFramework.git", :tag => "0.9.0" }
 
   s.platform     = :ios, '5.0'
   s.source_files = 'Backbeam'
-  s.resources = "Backbeam/*.xib"
+  s.resources    = "Backbeam/*.xib"
   s.requires_arc = true
 
   s.dependency 'AFNetworking', '~> 1.1.0'
