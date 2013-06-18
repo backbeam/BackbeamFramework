@@ -10,9 +10,14 @@
 
 @interface BBPushNotification : NSObject
 
-@property (nonatomic, strong) NSString* text;
-@property (nonatomic, strong) NSString* sound;
-@property (nonatomic, strong) NSNumber* badge;
-@property (nonatomic, strong) id extra;
+@property (nonatomic, strong) NSString *iosAlert;
+@property (nonatomic, strong) NSString *iosSound;
+@property (nonatomic, strong) NSNumber *iosBadge;
+@property (nonatomic, strong) NSDictionary *iosPayload;
+
+@property (nonatomic, strong) NSString *androidCollapseKey;
+@property (nonatomic, strong) NSNumber *androidDelayWhileIdle;
+@property (nonatomic, strong) NSNumber *androidTimeToLive;
+@property (nonatomic, strong) NSDictionary *androidData;
 
 @end

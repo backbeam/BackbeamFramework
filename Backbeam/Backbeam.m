@@ -603,10 +603,36 @@
 - (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureBlock)failure {
     NSMutableDictionary* body = [[NSMutableDictionary alloc] init];
     [body setObject:channel forKey:@"channel"];
-    if (notification.badge) { [body setObject:[NSString stringWithFormat:@"%d", notification.badge.integerValue] forKey:@"apn_badge"]; }
-    if (notification.text ) { [body setObject:notification.text  forKey:@"apn_alert"]; }
-    if (notification.sound) { [body setObject:notification.sound forKey:@"apn_sound"]; }
-    // TODO: apn_payload = notification.extra
+    
+    if (notification.iosBadge) {
+        [body setObject:[NSString stringWithFormat:@"%d", notification.iosBadge.integerValue] forKey:@"apn_badge"];
+    }
+    if (notification.iosAlert) {
+        [body setObject:notification.iosAlert  forKey:@"apn_alert"];
+    }
+    if (notification.iosSound) {
+        [body setObject:notification.iosSound forKey:@"apn_sound"];
+    }
+    if (notification.iosPayload) {
+        for (id key in notification.iosPayload.allKeys) {
+            [body setObject:[[notification.iosPayload objectForKey:key] description] forKey:[NSString stringWithFormat:@"apn_payload_%@", key]];
+        }
+    }
+    
+    if (notification.androidCollapseKey) {
+        [body setObject:notification.androidCollapseKey forKey:@"gcm_collapse_key"];
+    }
+    if (notification.androidTimeToLive ) {
+        [body setObject:[NSString stringWithFormat:@"%ld", notification.androidTimeToLive.longValue] forKey:@"gcm_time_to_live"];
+    }
+    if (notification.androidDelayWhileIdle) {
+        [body setObject:(notification.androidDelayWhileIdle.boolValue ? @"true" : @"false") forKey:@"gcm_delay_while_idle"];
+    }
+    if (notification.androidData) {
+        for (id key in notification.androidData.allKeys) {
+            [body setObject:[[notification.androidData objectForKey:key] description] forKey:[NSString stringWithFormat:@"gcm_data_%@", key]];
+        }
+    }
     
     [self perform:@"POST" path:@"/push/send" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processBasicResponse:result success:success failure:failure];
