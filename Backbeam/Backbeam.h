@@ -195,4 +195,21 @@
 
 + (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message;
 
++ (void)setWebVersion:(NSString*)webVersion;
+
++ (void)requestJSONFromController:(NSString*)path
+                           method:(NSString*)method
+                           params:(NSDictionary*)params
+                      fetchPolicy:(BBFetchPolicy)fetchPolicy
+                          success:(SuccessOperationBlock)success
+                          failure:(FailureOperationBlock)failure;
+
++ (void)requestObjectsFromController:(NSString*)path
+                              method:(NSString*)method
+                              params:(NSDictionary*)params
+                         fetchPolicy:(BBFetchPolicy)fetchPolicy
+                             success:(SuccessNearQueryBlock)success
+                             failure:(FailureQueryBlock)failure;
+
+
 @end

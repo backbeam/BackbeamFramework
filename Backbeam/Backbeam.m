@@ -36,6 +36,7 @@
 @property (nonatomic, strong) NSString* sharedKey;
 @property (nonatomic, strong) NSString* secretKey;
 @property (nonatomic, strong) NSString* authCode;
+@property (nonatomic, strong) NSString* _webVersion;
 
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
@@ -110,6 +111,10 @@
 - (void)setHost:(NSString*)host port:(NSInteger)port {
     self.host = host;
     self.port = port;
+}
+
+- (void)setWebVersion:(NSString*)webVersion {
+    self._webVersion = webVersion;
 }
 
 - (void)setProtocol:(NSString *)protocol {
@@ -409,6 +414,160 @@
         failure(result, err);
     }];
     [operation start];
+}
+
+- (void)requestController:(NSString*)path
+                   method:(NSString*)method
+                   params:(NSDictionary*)params
+              fetchPolicy:(BBFetchPolicy)fetchPolicy
+                  success:(SuccessControllerBlock)success
+                  failure:(FailureControllerBlock)failure {
+    
+    NSString *urlString = nil;
+    if (self._webVersion) {
+        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@-%@.%@:%d", self._protocol, self._webVersion, self.env, self.project, self.host, self.port];
+    } else {
+        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@.%@:%d", self._protocol, self.env, self.project, self.host, self.port];
+    }
+    AFHTTPClient *client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:urlString]];
+    NSMutableURLRequest* req = [client requestWithMethod:method path:path parameters:params];
+    if (self.authCode) {
+        [req setValue:self.authCode forHTTPHeaderField:@"x-backbeam-auth"];
+    }
+    [req setValue:@"ios" forHTTPHeaderField:@"x-backbeam-sdk"];
+    
+    NSString* cacheKey = nil;
+    BOOL useCache = fetchPolicy == BBFetchPolicyLocalOnly
+                 || fetchPolicy == BBFetchPolicyLocalAndRemote
+                 || fetchPolicy == BBFetchPolicyLocalOrRemote;
+    if (useCache) {
+        NSString *cacheKeyString = [self sign:[[NSMutableDictionary alloc] initWithDictionary:params]];
+        cacheKey = [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
+        NSData* data = [self.queryCache read:cacheKey];
+        BOOL read = NO;
+        if (data) {
+            id result = [[[JSONDecoder alloc] init] objectWithData:data];
+            if (result) {
+                read = YES;
+                success(result, YES, nil);
+                if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
+                    return;
+                }
+            }
+        }
+        if (fetchPolicy == BBFetchPolicyLocalOnly) {
+            if (!read) {
+                failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
+            }
+            return;
+        }
+    }
+    
+    __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
+        success(result, NO, operation.response);
+        
+        if (useCache) {
+            [self.queryCache write:operation.responseData withKey:cacheKey];
+        }
+    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
+        failure(result, err);
+    }];
+    
+    [operation start];
+}
+
+- (void)requestJSONFromController:(NSString*)path
+                           method:(NSString*)method
+                           params:(NSDictionary*)params
+                      fetchPolicy:(BBFetchPolicy)fetchPolicy
+                          success:(SuccessOperationBlock)success
+                          failure:(FailureOperationBlock)failure {
+    
+    [self requestController:path method:method params:params fetchPolicy:fetchPolicy success:^(id result, BOOL fromCache, NSHTTPURLResponse *response) {
+        
+        NSString* auth   = [[response allHeaderFields] stringForKey:@"x-backbeam-auth"];
+        NSString* userid = [[response allHeaderFields] stringForKey:@"x-backbeam-user"];
+        
+        if (auth) {
+            if (auth.length == 0) {
+                [self logout];
+            } else {
+                BBObject *user = [[BBObject alloc] initWith:self entity:@"user" identifier:userid];
+                [self setCurrentUser:user withAuthCode:auth];
+            }
+        }
+        success(result, fromCache);
+    } failure:^(id result, NSError *error) {
+        failure(result, error);
+    }];
+    
+}
+
+- (void)requestObjectsFromController:(NSString*)path
+                              method:(NSString*)method
+                              params:(NSDictionary*)params
+                         fetchPolicy:(BBFetchPolicy)fetchPolicy
+                             success:(SuccessNearQueryBlock)success
+                             failure:(FailureQueryBlock)failure {
+    
+    [self requestController:path method:method params:params fetchPolicy:fetchPolicy success:^(id result, BOOL fromCache, NSHTTPURLResponse *response) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSDictionary* objects = [result dictionaryForKey:@"objects"];
+        if (!objects) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableDictionary* refs = [BBObject objectsWithSession:self values:objects references:nil];
+        NSArray* ids = [result arrayForKey:@"ids"];
+        if (!ids) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            return;
+        }
+        NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
+        for (NSString* identifier in ids) {
+            BBObject* obj = [refs objectForKey:identifier];
+            if (obj) { // should always exist
+                [arr addObject:obj];
+            }
+        }
+        NSNumber *totalCount = [result numberForKey:@"count"];
+        NSArray  *distances  = [result arrayForKey:@"distances"];
+        
+        NSString* auth   = [[response allHeaderFields] stringForKey:@"x-backbeam-auth"];
+        NSString* userid = [[response allHeaderFields] stringForKey:@"x-backbeam-user"];
+        
+        if (auth) {
+            if (auth.length == 0) {
+                [self logout];
+            } else {
+                BBObject *user = [refs objectForKey:userid];
+                if (!user) {
+                    user = [[BBObject alloc] initWith:self entity:@"user" identifier:userid];
+                }
+                [self setCurrentUser:user withAuthCode:auth];
+            }
+        }
+        
+        success(arr, totalCount.integerValue, distances, fromCache);
+    } failure:^(id result, NSError *error) {
+        if (result) {
+            if (![result isKindOfClass:[NSDictionary class]]) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                return;
+            }
+            NSString* status = [result stringForKey:@"status"];
+            if (![status isEqualToString:@"Success"]) {
+                failure([BBError errorWithStatus:status result:result]);
+                return;
+            }
+        } else {
+            failure(error);
+        }
+    }];
+    
 }
 
 - (void)upload:(NSString*)httpMethod
@@ -882,6 +1041,10 @@
     [[BackbeamSession instance] setHost:host port:port];
 }
 
++ (void)setWebVersion:(NSString*)webVersion {
+    [[BackbeamSession instance] setWebVersion:webVersion];
+}
+
 + (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
     [[BackbeamSession instance] setProject:project sharedKey:sharedKey secretKey:secretKey environment:env];
 }
@@ -991,6 +1154,24 @@
                 success:(SuccessObjectBlock)success
                 failure:(FailureObjectBlock)failure {
     return [[BackbeamSession instance] readObject:entity withIdentifier:identifier join:nil params:nil success:success failure:failure];
+}
+
++ (void)requestJSONFromController:(NSString*)path
+                           method:(NSString*)method
+                           params:(NSDictionary*)params
+                      fetchPolicy:(BBFetchPolicy)fetchPolicy
+                          success:(SuccessOperationBlock)success
+                          failure:(FailureOperationBlock)failure {
+    [[BackbeamSession instance] requestJSONFromController:path method:method params:params fetchPolicy:fetchPolicy success:success failure:failure];
+}
+
++ (void)requestObjectsFromController:(NSString*)path
+                              method:(NSString*)method
+                              params:(NSDictionary*)params
+                         fetchPolicy:(BBFetchPolicy)fetchPolicy
+                             success:(SuccessNearQueryBlock)success
+                             failure:(FailureQueryBlock)failure {
+    [[BackbeamSession instance] requestObjectsFromController:path method:method params:params fetchPolicy:fetchPolicy success:success failure:failure];
 }
 
 + (void)enableRealTime {

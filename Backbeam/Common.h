@@ -23,6 +23,8 @@ typedef void(^FailureOperationBlock)(id result, NSError* err);
 typedef void(^SuccessOperationObjectBlock)(NSString* status, BBObject* object, NSString* authCode);
 typedef void(^SuccessDataBlock)(NSData* data);
 typedef void(^ProgressDataBlock)(NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
+typedef void(^SuccessControllerBlock)(id result, BOOL fromCache, NSHTTPURLResponse *response);
+typedef void(^FailureControllerBlock)(id result, NSError* err);
 
 // public use
 typedef void(^SuccessBlock)();

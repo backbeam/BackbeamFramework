@@ -124,8 +124,8 @@
         [Backbeam subscribeToChannels:[NSArray arrayWithObjects:@"foo", @"bar", nil] success:^{
             [Backbeam unsubscribeFromChannels:[NSArray arrayWithObjects:@"foo", nil] success:^{
                 BBPushNotification* notification = [[BBPushNotification alloc] init];
-                notification.text = @"Hello world!";
-                notification.sound = @"default";
+                notification.iosAlert = @"Hello world!";
+                notification.iosSound = @"default";
                 [Backbeam sendPushNotification:notification toChannel:@"bar" success:^{
                     done();
                 } failure:^(NSError* error) {
