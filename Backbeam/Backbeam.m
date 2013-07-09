@@ -37,6 +37,7 @@
 @property (nonatomic, strong) NSString* secretKey;
 @property (nonatomic, strong) NSString* authCode;
 @property (nonatomic, strong) NSString* _webVersion;
+@property (nonatomic, strong) NSString* _httpAuth;
 
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
@@ -115,6 +116,10 @@
 
 - (void)setWebVersion:(NSString*)webVersion {
     self._webVersion = webVersion;
+}
+
+- (void)setHttpAuth:(NSString*)httpAuth {
+    self._httpAuth = httpAuth;
 }
 
 - (void)setProtocol:(NSString *)protocol {
@@ -430,6 +435,9 @@
         urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@.%@:%d", self._protocol, self.env, self.project, self.host, self.port];
     }
     AFHTTPClient *client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:urlString]];
+    if (self._httpAuth) {
+        [client setAuthorizationHeaderWithUsername:self.project password:self._httpAuth];
+    }
     NSMutableURLRequest* req = [client requestWithMethod:method path:path parameters:params];
     if (self.authCode) {
         [req setValue:self.authCode forHTTPHeaderField:@"x-backbeam-auth"];
@@ -1043,6 +1051,10 @@
 
 + (void)setWebVersion:(NSString*)webVersion {
     [[BackbeamSession instance] setWebVersion:webVersion];
+}
+
++ (void)setHttpAuth:(NSString*)httpAuth {
+    [[BackbeamSession instance] setHttpAuth:httpAuth];
 }
 
 + (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {

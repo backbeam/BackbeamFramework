@@ -197,6 +197,8 @@
 
 + (void)setWebVersion:(NSString*)webVersion;
 
++ (void)setHttpAuth:(NSString*)httpAuth;
+
 + (void)requestJSONFromController:(NSString*)path
                            method:(NSString*)method
                            params:(NSDictionary*)params
