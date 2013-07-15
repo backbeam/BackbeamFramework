@@ -62,9 +62,9 @@
     NSString* status = [self.userInfo objectForKey:@"status"];
     if (status) {
         if (errorMessage) {
-            return [NSString stringWithFormat:@"Server responded with status %@ and errorMessage: %@", status, errorMessage];
+            return [NSString stringWithFormat:@"Error type %@, errorMessage: %@", status, errorMessage];
         }
-        return [NSString stringWithFormat:@"Server responded with status %@", status];
+        return [NSString stringWithFormat:@"Error type %@", status];
     }
     NSError* rootError = [self.userInfo objectForKey:@"rootError"];
     if (rootError) {

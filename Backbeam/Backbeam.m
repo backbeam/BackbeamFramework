@@ -153,12 +153,17 @@
 }
 
 - (void)enableRealTime {
+    [self disableRealTime];
+    [self connect];
+}
+
+- (void)disableRealTime {
     if (self.socketio && !self.socketio.isConnected && !self.socketio.isConnecting) {
         self.socketio.delegate = nil;
+        [self.socketio disconnect];
         self.socketio = nil;
     }
     self.delay = 0;
-    [self connect];
 }
 
 - (void)connectAfterDelay {
@@ -192,7 +197,6 @@
     
     if (self.socketio.isConnected) {
         NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
-        [self sign:params];
         [self.socketio sendEvent:@"subscribe" withData:params];
     }
     return YES;
@@ -208,7 +212,6 @@
     }
     if (self.socketio.isConnected && delegates.count == 0) {
         NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
-        [self sign:params];
         [self.socketio sendEvent:@"unsubscribe" withData:params];
     }
     return YES;
@@ -220,9 +223,11 @@
     NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
     for (id key in message.allKeys) {
         NSString *_key = [NSString stringWithFormat:@"_%@", key];
-        [params setObject:[message objectForKey:key] forKey:_key];
+        NSString *value = [message stringForKey:key];
+        if (value) {
+            [params setObject:value forKey:_key];
+        }
     }
-    [self sign:params];
     [self.socketio sendEvent:@"publish" withData:params];
     return YES;
 }
@@ -235,7 +240,6 @@
     self.delay = 0;
     for (NSString *room in self.roomDelegates) {
         NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:room, @"room", nil];
-        [self sign:params];
         [self.socketio sendEvent:@"subscribe" withData:params];
     }
     for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
@@ -393,14 +397,16 @@
             id result = [[[JSONDecoder alloc] init] objectWithData:data];
             if (result) {
                 read = YES;
-                success(result, YES);
+                if (success) {
+                    success(result, YES);
+                }
                 if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
                     return;
                 }
             }
         }
         if (fetchPolicy == BBFetchPolicyLocalOnly) {
-            if (!read) {
+            if (!read && failure) {
                 failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
             }
             return;
@@ -409,14 +415,18 @@
     
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
-        success(result, NO);
+        if (success) {
+            success(result, NO);
+        }
         
         if (useCache) {
             [self.queryCache write:operation.responseData withKey:cacheKey];
         }
         
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
-        failure(result, err);
+        if (failure) {
+            failure(result, err);
+        }
     }];
     [operation start];
 }
@@ -457,14 +467,16 @@
             id result = [[[JSONDecoder alloc] init] objectWithData:data];
             if (result) {
                 read = YES;
-                success(result, YES, nil);
+                if (success) {
+                    success(result, YES, nil);
+                }
                 if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
                     return;
                 }
             }
         }
         if (fetchPolicy == BBFetchPolicyLocalOnly) {
-            if (!read) {
+            if (!read && failure) {
                 failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
             }
             return;
@@ -472,13 +484,17 @@
     }
     
     __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
-        success(result, NO, operation.response);
+        if (success) {
+            success(result, NO, operation.response);
+        }
         
         if (useCache) {
             [self.queryCache write:operation.responseData withKey:cacheKey];
         }
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
-        failure(result, err);
+        if (failure) {
+            failure(result, err);
+        }
     }];
     
     [operation start];
@@ -504,9 +520,13 @@
                 [self setCurrentUser:user withAuthCode:auth];
             }
         }
-        success(result, fromCache);
+        if (success) {
+            success(result, fromCache);
+        }
     } failure:^(id result, NSError *error) {
-        failure(result, error);
+        if (failure) {
+            failure(result, error);
+        }
     }];
     
 }
@@ -520,18 +540,24 @@
     
     [self requestController:path method:method params:params fetchPolicy:fetchPolicy success:^(id result, BOOL fromCache, NSHTTPURLResponse *response) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSDictionary* objects = [result dictionaryForKey:@"objects"];
         if (!objects) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableDictionary* refs = [BBObject objectsWithSession:self values:objects references:nil];
         NSArray* ids = [result arrayForKey:@"ids"];
         if (!ids) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
@@ -559,19 +585,25 @@
             }
         }
         
-        success(arr, totalCount.integerValue, distances, fromCache);
+        if (success) {
+            success(arr, totalCount.integerValue, distances, fromCache);
+        }
     } failure:^(id result, NSError *error) {
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {
-                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                }
                 return;
             }
             NSString* status = [result stringForKey:@"status"];
             if (![status isEqualToString:@"Success"]) {
-                failure([BBError errorWithStatus:status result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:status result:result]);
+                }
                 return;
             }
-        } else {
+        } else if (failure) {
             failure(error);
         }
     }];
@@ -623,11 +655,15 @@
     
     AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
         [self processBasicResponse:result success:success failure:^(NSError* error) {
-            failure(result, error);
+            if (failure) {
+                failure(result, error);
+            }
         }];
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
         [self processBasicFailure:result error:err failure:^(NSError* error) {
-            failure(result, error);
+            if (failure) {
+                failure(result, error);
+            }
         }];
     }];
     if (progress) {
@@ -649,7 +685,12 @@
     NSString* width  = [NSString stringWithFormat:@"%d", (int)(size.width *scale)];
     NSString* height = [NSString stringWithFormat:@"%d", (int)(size.height*scale)];
     
-    NSString* path = [NSString stringWithFormat:@"/data/file/download/%@/%@", identifier, version];
+    NSString* path = nil;
+    if (version) {
+        path = [NSString stringWithFormat:@"/data/file/download/%@/%@", identifier, version];
+    } else {
+        path = [NSString stringWithFormat:@"/data/file/download/%@", identifier];
+    }
     NSMutableDictionary* params = [NSMutableDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
     [params setObject:@"GET" forKey:@"method"];
     [params setObject:path forKey:@"path"];
@@ -666,8 +707,10 @@
         // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
         if (img) {
             [self.imageCache setObject:img forKey:cacheKey];
-            success(img);
-        } else {
+            if (success) {
+                success(img);
+            }
+        } else if (failure) {
             failure([BBError errorWithStatus:@"InvalidImage" result:nil]);
         }
     } failure:failure];
@@ -689,12 +732,16 @@
     [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation* operation, id response) {
         if (response) { // TODO: isKindOfClass:[NSData data] but was __NSCFData
             NSData* data = (NSData*)response;
-            success(data);
-        } else {
+            if (success) {
+                success(data);
+            }
+        } else if (failure) {
             failure([BBError errorWithStatus:@"InvalidResponse" result:nil]);
         }
     } failure:^(AFHTTPRequestOperation* operation, NSError* error) {
-        failure([BBError errorWithError:error]);
+        if (failure) {
+            failure([BBError errorWithError:error]);
+        }
     }];
     [operation start];
 }
@@ -706,65 +753,139 @@
     [base64 writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 
-- (BOOL)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
-    if (!self.deviceToken) { return NO; }
+- (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    if (!self.deviceToken) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
+            }];
+        }
+    }
+    
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/subscribe" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processBasicResponse:result success:^(id result) {
-            success();
+            if (success) {
+                success();
+            }
         } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
     }];
-    return YES;
 }
 
-- (BOOL)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
-    if (!self.deviceToken) return NO;
+- (void)subscribedChannels:(SuccessArrayBlock)success failure:(FailureBlock)failure {
+    if (!self.deviceToken) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
+            }];
+        }
+    }
+    
+    NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:self.deviceToken, @"token", @"apn", @"gateway", nil];
+    
+    [self perform:@"GET" path:@"/push/subscribed-channels" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        NSLog(@"result %@", result);
+        [self processBasicResponse:result success:^(id result) {
+            NSArray *channels = [result arrayForKey:@"channels"];
+            if (success) {
+                success(channels);
+            }
+        } failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processBasicFailure:result error:err failure:failure];
+    }];
+}
+
+- (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    if (!self.deviceToken) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
+            }];
+        }
+    }
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"POST" path:@"/push/unsubscribe" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processBasicResponse:result success:^(id result) {
-            success();
+            if (success) {
+                success();
+            }
         } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processBasicFailure:result error:err failure:failure];
     }];
-    return YES;
+}
+
+- (void)unsubscribeFromAllChannels:(SuccessBlock)success failure:(FailureBlock)failure {
+    if (!self.deviceToken) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
+            }];
+        }
+    }
+    NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:self.deviceToken, @"token", @"apn", @"gateway", nil];
+    
+    [self perform:@"POST" path:@"/push/unsubscribe-all" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
+        [self processBasicResponse:result success:^(id result) {
+            if (success) {
+                success();
+            }
+        } failure:failure];
+    } failure:^(id result, NSError* err) {
+        [self processBasicFailure:result error:err failure:failure];
+    }];
 }
 
 - (void)processBasicResponse:(id)result success:(SuccessBlock)success failure:(FailureBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
-        failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        if (failure) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        }
         return;
     }
     NSString* status = [result stringForKey:@"status"];
     if (!status) {
-        failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        if (failure) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        }
         return;
     }
     if (![status isEqualToString:@"Success"]) {
-        failure([BBError errorWithStatus:status result:result]);
+        if (failure) {
+            failure([BBError errorWithStatus:status result:result]);
+        }
         return;
     }
     
-    success(result);
+    if (success) {
+        success(result);
+    }
 }
 
 - (void)processBasicFailure:(id)result error:(NSError*)error failure:(FailureBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
-        failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        if (failure) {
+            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+        }
         return;
     }
     
     NSString* status = [result stringForKey:@"status"];
     if (![status isEqualToString:@"Success"]) {
-        failure([BBError errorWithStatus:status result:result]);
+        if (failure) {
+            failure([BBError errorWithStatus:status result:result]);
+        }
         return;
     }
     
-    failure([BBError errorWithError:error]);
+    if (failure) {
+        failure([BBError errorWithError:error]);
+    }
 }
 
 - (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureBlock)failure {
@@ -841,25 +962,35 @@
     
     [self perform:@"POST" path:@"/user/email/login" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         NSString* status = [result stringForKey:@"status"];
         if (!status) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
-            failure([BBError errorWithStatus:status result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:status result:result]);
+            }
             return;
         }
         
         BBObject *user = [self loginEmailWithResponse:result];
-        success(user);
+        if (success) {
+            success(user);
+        }
     } failure:^(id result, NSError* error) {
-        failure([BBError errorWithResult:result error:error]);
+        if (failure) {
+            failure([BBError errorWithResult:result error:error]);
+        }
     }];
 }
 
@@ -880,23 +1011,33 @@
     NSDictionary* body = [NSDictionary dictionaryWithObject:email forKey:@"email"];
     [self perform:@"POST" path:@"/user/email/lostpassword" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         NSString* status = [result stringForKey:@"status"];
         if (!status) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         if (![status isEqualToString:@"Success"]) {
-            failure([BBError errorWithStatus:status result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:status result:result]);
+            }
             return;
         }
-        success();
+        if (success) {
+            success();
+        }
     } failure:^(id result, NSError* error) {
-        failure([BBError errorWithResult:result error:error]);
+        if (failure) {
+            failure([BBError errorWithResult:result error:error]);
+        }
     }];
 }
 
@@ -910,25 +1051,35 @@
     }
     [self perform:@"POST" path:@"/user/email/verify" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         NSString* status = [result stringForKey:@"status"];
         if (!status) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
-            failure([BBError errorWithStatus:status result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:status result:result]);
+            }
             return;
         }
         
         BBObject *user = [self loginEmailWithResponse:result];
-        success(user);
+        if (success) {
+            success(user);
+        }
     } failure:^(id result, NSError* error) {
-        failure([BBError errorWithResult:result error:error]);
+        if (failure) {
+            failure([BBError errorWithResult:result error:error]);
+        }
     }];
 }
 
@@ -941,7 +1092,9 @@
     [self perform:@"POST" path:path params:params fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
@@ -949,7 +1102,9 @@
         NSString* status = [result stringForKey:@"status"];
         BOOL isNew = [status isEqualToString:@"Success"];
         if (!isNew && ![status isEqualToString:@"UserAlreadyExists"]) {
-            failure([BBError errorWithStatus:status result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:status result:result]);
+            }
             return;
         }
         
@@ -957,16 +1112,22 @@
         NSString* identifier = [dict stringForKey:@"id"];
         NSString* auth = [dict stringForKey:@"auth"];
         if (!values || !identifier || !auth) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         
         NSDictionary* objects = [BBObject objectsWithSession:self values:values references:nil];
         BBObject* user = [objects objectForKey:identifier];
         [self setCurrentUser:user withAuthCode:auth];
-        success(user, isNew);
+        if (success) {
+            success(user, isNew);
+        }
     } failure:^(id result, NSError* error) {
-        failure([BBError errorWithResult:result error:error]);
+        if (failure) {
+            failure([BBError errorWithResult:result error:error]);
+        }
     }];
 }
 
@@ -976,9 +1137,13 @@
     
     NSDictionary* postParams = [NSDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
     [self socialSignup:@"facebook" params:postParams success:^(BBObject* user, BOOL isNew) {
-        success(user, isNew);
+        if (success) {
+            success(user, isNew);
+        }
     } failure:^(NSError* err) {
-        failure(err);
+        if (failure) {
+            failure(err);
+        }
     }];
 
 }
@@ -997,9 +1162,13 @@
         }
     }
     [self socialSignup:@"facebook" params:postParams success:^(BBObject* user, BOOL isNew) {
-        success(user, isNew);
+        if (success) {
+            success(user, isNew);
+        }
     } failure:^(NSError* err) {
-        failure(err);
+        if (failure) {
+            failure(err);
+        }
     }];
     
 }
@@ -1073,20 +1242,34 @@
     [[BackbeamSession instance] persistDeviceToken:data];
 }
 
-+ (BOOL)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
-    return [[BackbeamSession instance] subscribeToChannels:channels success:success failure:failure];
++ (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    [[BackbeamSession instance] subscribeToChannels:channels success:success failure:failure];
 }
 
-+ (BOOL)subscribeToChannels:(NSArray*)channels {
-    return [[BackbeamSession instance] subscribeToChannels:channels success:^{} failure:^(NSError* err){}];
++ (void)subscribeToChannels:(NSArray*)channels {
+    [[BackbeamSession instance] subscribeToChannels:channels success:nil failure:^(NSError* err){}];
 }
 
-+ (BOOL)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
-    return [[BackbeamSession instance] unsubscribeFromChannels:channels success:success failure:failure];
++ (void)subscribedChannels:(SuccessArrayBlock)success
+                   failure:(FailureBlock)failure {
+    
+    [[BackbeamSession instance] subscribedChannels:success failure:failure];
+    
 }
 
-+ (BOOL)unsubscribeFromChannels:(NSArray*)channels {
-    return [[BackbeamSession instance] unsubscribeFromChannels:channels success:^{} failure:^(NSError* err){}];
++ (void)unsubscribeFromAllChannels:(SuccessBlock)success
+                           failure:(FailureBlock)failure {
+    
+    [[BackbeamSession instance] unsubscribeFromAllChannels:success failure:failure];
+    
+}
+
++ (void)unsubscribeFromChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
+    [[BackbeamSession instance] unsubscribeFromChannels:channels success:success failure:failure];
+}
+
++ (void)unsubscribeFromChannels:(NSArray*)channels {
+    [[BackbeamSession instance] unsubscribeFromChannels:channels success:nil failure:^(NSError* err){}];
 }
 
 + (void)sendPushNotification:(BBPushNotification*)notification toChannel:(NSString*)channel success:(SuccessBlock)success failure:(FailureBlock)failure {
@@ -1188,6 +1371,10 @@
 
 + (void)enableRealTime {
     [[BackbeamSession instance] enableRealTime];
+}
+
++ (void)disableRealTime {
+    [[BackbeamSession instance] disableRealTime];
 }
 
 + (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {

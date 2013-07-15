@@ -333,7 +333,9 @@
 
 - (void)processResponse:(id)result success:(SuccessOperationObjectBlock)success failure:(FailureObjectBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
-        failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        if (failure) {
+            failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        }
         return;
     }
     
@@ -343,38 +345,56 @@
     NSString* identifier  = [result stringForKey:@"id"];
     
     if (!status || !identifier || !objects) {
-        failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        if (failure) {
+            failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        }
         return;
     }
     
     self._identifier = identifier;
     
     if (![status isEqualToString:@"Success"] && ![status isEqualToString:@"PendingValidation"]) {
-        failure(self, [BBError errorWithStatus:status result:result]);
+        if (failure) {
+            failure(self, [BBError errorWithStatus:status result:result]);
+        }
         return;
     }
     NSMutableDictionary* selfDict = [NSMutableDictionary dictionaryWithObject:self forKey:self._identifier];
     [BBObject objectsWithSession:self._session values:objects references:selfDict];
-    success(status, self, authCode);
+    if (success) {
+        success(status, self, authCode);
+    }
 }
 
 - (void)processResponse:(id)result error:(NSError*)err failure:(FailureObjectBlock)failure {
     if (![result isKindOfClass:[NSDictionary class]]) {
-        failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        if (failure) {
+            failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+        }
         return;
     }
     
     NSString* status = [result stringForKey:@"status"];
     if (status) {
-        failure(self, [BBError errorWithStatus:status result:result]);
+        if (failure) {
+            failure(self, [BBError errorWithStatus:status result:result]);
+        }
         return;
     }
     
-    failure(self, [BBError errorWithError:err]);
+    if (failure) {
+        failure(self, [BBError errorWithError:err]);
+    }
 }
 
-- (BOOL)save:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    if (!self._entity) { return NO; }
+- (void)save:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (!self._entity) {
+        if (failure) {
+            [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                failure(self, [BBError errorWithStatus:@"UnknownEntity" result:nil]);
+            }];
+        }
+    }
     
     NSString* path = nil;
     NSString* method = nil;
@@ -399,35 +419,50 @@
                     [self._session setCurrentUser:self withAuthCode:authCode];
                 }
             }
-            success(object);
+            if (success) {
+                success(object);
+            }
         } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processResponse:result error:err failure:failure];
     }];
-    return YES;
 }
 
-- (BOOL)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    if (!self._entity || !self._identifier) { return NO; }
+- (void)remove:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (!self._entity || !self._identifier) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure(self, [BBError errorWithStatus:@"UnknownEntityOrIdentifier" result:nil]);
+            }];
+        }
+    }
     NSString* path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     
     [self._session perform:@"DELETE" path:path params:nil fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
             // TODO: if (is current user) logout; return;
-            success(self);
+            if (success) {
+                success(self);
+            }
         } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processResponse:result error:err failure:failure];
     }];
-    return YES;
 }
 
-- (BOOL)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    return [self refresh:nil params:nil success:success failure:failure];
+- (void)refresh:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    [self refresh:nil params:nil success:success failure:failure];
 }
 
-- (BOOL)refresh:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
-    if (!self._entity || !self._identifier) { return NO; }
+- (void)refresh:(NSString*)joins params:(NSArray*)params success:(SuccessObjectBlock)success failure:(FailureObjectBlock)failure {
+    if (!self._entity || !self._identifier) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure(self, [BBError errorWithStatus:@"UnknownEntityOrIdentifier" result:nil]);
+            }];
+        }
+    }
+    
     NSString *path = [NSString stringWithFormat:@"/data/%@/%@", self._entity, self._identifier];
     NSMutableDictionary *prms = nil;
     if (joins) {
@@ -439,12 +474,13 @@
     }
     [self._session perform:@"GET" path:path params:prms fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
         [self processResponse:result success:^(NSString* status, BBObject* object, NSString* authCode) {
-            success(object);
+            if (success) {
+                success(object);
+            }
         } failure:failure];
     } failure:^(id result, NSError* err) {
         [self processResponse:result error:err failure:failure];
     }];
-    return YES;
 }
 
 - (NSString *)description {
@@ -467,7 +503,9 @@
     
     NSNumber* version = [self numberForField:@"version"];
     return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
-        failure(self, error);
+        if (failure) {
+            failure(self, error);
+        }
     }];
 }
 
@@ -479,7 +517,9 @@
     
     NSNumber* version = [self numberForField:@"version"];
     return [self._session image:self._identifier version:version withSize:size progress:progress success:success failure:^(NSError* error) {
-        failure(self, error);
+        if (failure) {
+            failure(self, error);
+        }
     }];
 }
 
@@ -512,10 +552,15 @@
                      NSDictionary* objects = [result dictionaryForKey:@"objects"];
                      NSMutableDictionary* selfDict = [NSMutableDictionary dictionaryWithObject:self forKey:self._identifier];
                      [BBObject objectsWithSession:self._session values:objects references:selfDict];
-        success(self);
+                     
+                     if (success) {
+                         success(self);
+                     }
     } failure:^(id result, NSError* error) {
         // TODO: response message?
-        failure(self, error);
+        if (failure) {
+            failure(self, error);
+        }
     }];
     
     return NO;
@@ -539,7 +584,9 @@
     
     NSData* data = [NSData dataWithContentsOfFile:path];
     if (!data) {
-        failure(self, [BBError errorWithStatus:@"CannotReadFile" result:nil]);
+        if (failure) {
+            failure(self, [BBError errorWithStatus:@"CannotReadFile" result:nil]);
+        }
         return NO;
     }
     NSString* fileName = [path lastPathComponent];
@@ -575,9 +622,13 @@
     
     NSString* path = [NSString stringWithFormat:@"/data/file/download/%@/%@", self._identifier, version];
     [self._session downloadPath:path progress:progress success:^(NSData* data) {
-        success(self, data);
+        if (success) {
+            success(self, data);
+        }
     } failure:^(NSError* error) {
-        failure(self, error);
+        if (failure) {
+            failure(self, error);
+        }
     }];
     return YES;
 }

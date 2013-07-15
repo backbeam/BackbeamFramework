@@ -132,16 +132,22 @@
                 success:(SuccessObjectBlock)success
                 failure:(FailureObjectBlock)failure;
 
-+ (BOOL)subscribeToChannels:(NSArray*)channels
++ (void)subscribeToChannels:(NSArray*)channels
                     success:(SuccessBlock)success
                     failure:(FailureBlock)failure;
 
-+ (BOOL)subscribeToChannels:(NSArray*)channels;
++ (void)subscribeToChannels:(NSArray*)channels;
 
-+ (BOOL)unsubscribeFromChannels:(NSArray*)channels
++ (void)subscribedChannels:(SuccessArrayBlock)success
+                   failure:(FailureBlock)failure;
+
++ (void)unsubscribeFromAllChannels:(SuccessBlock)success
+                           failure:(FailureBlock)failure;
+
++ (void)unsubscribeFromChannels:(NSArray*)channels
                         success:(SuccessBlock)success
                         failure:(FailureBlock)failure;
-+ (BOOL)unsubscribeFromChannels:(NSArray*)channels;
++ (void)unsubscribeFromChannels:(NSArray*)channels;
 
 + (void)sendPushNotification:(BBPushNotification*)notification
                    toChannel:(NSString*)channel
@@ -212,6 +218,5 @@
                          fetchPolicy:(BBFetchPolicy)fetchPolicy
                              success:(SuccessNearQueryBlock)success
                              failure:(FailureQueryBlock)failure;
-
 
 @end

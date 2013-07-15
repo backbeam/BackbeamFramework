@@ -19,18 +19,19 @@ typedef enum {
 
 // internal use
 typedef void(^SuccessOperationBlock)(id result, BOOL fromCache);
-typedef void(^FailureOperationBlock)(id result, NSError* err);
-typedef void(^SuccessOperationObjectBlock)(NSString* status, BBObject* object, NSString* authCode);
-typedef void(^SuccessDataBlock)(NSData* data);
+typedef void(^FailureOperationBlock)(id result, NSError *err);
+typedef void(^SuccessOperationObjectBlock)(NSString *status, BBObject *object, NSString *authCode);
+typedef void(^SuccessDataBlock)(NSData *data);
 typedef void(^ProgressDataBlock)(NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
 typedef void(^SuccessControllerBlock)(id result, BOOL fromCache, NSHTTPURLResponse *response);
 typedef void(^FailureControllerBlock)(id result, NSError* err);
 
 // public use
 typedef void(^SuccessBlock)();
-typedef void(^FailureBlock)(NSError* err);
+typedef void(^FailureBlock)(NSError *err);
 
-typedef void(^SuccessImageBlock)(UIImage* img);
+typedef void(^SuccessImageBlock)(UIImage *img);
+typedef void(^SuccessArrayBlock)(NSArray *array);
 
 typedef void(^SuccessQueryBlock)(NSArray* objects, NSInteger totalCount, BOOL fromCache);
 typedef void(^FailureQueryBlock)(NSError* err);

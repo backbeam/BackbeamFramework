@@ -111,12 +111,12 @@
 
 #if TARGET_IPHONE_SIMULATOR
     
-    [self test:@"Push notifications should not work if deviceToken is not set" done:^(DoneBlock done) {
-        NSArray* arr = [NSArray arrayWithObjects:@"foo", @"bar", nil];
-        assertNotOk([Backbeam subscribeToChannels:arr]);
-        assertNotOk([Backbeam unsubscribeFromChannels:arr]);
-        done();
-    }];
+//    [self test:@"Push notifications should not work if deviceToken is not set" done:^(DoneBlock done) {
+//        NSArray* arr = [NSArray arrayWithObjects:@"foo", @"bar", nil];
+//        assertNotOk([Backbeam subscribeToChannels:arr]);
+//        assertNotOk([Backbeam unsubscribeFromChannels:arr]);
+//        done();
+//    }];
 
 #else
     

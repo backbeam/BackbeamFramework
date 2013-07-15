@@ -185,8 +185,9 @@
                                                    screenName, @"twitter_screen_name",
                                                    oauthToken, @"oauth_token",
                                                    oauthTokenSecret, @"oauth_token_secret", nil];
-                        NSLog(@"extrainfo %@", extraInfo);
-                        self.success(user, extraInfo, isNew);
+                        if (self.success) {
+                            self.success(user, extraInfo, isNew);
+                        }
                     } failure:^(NSError* err) {
                         self.failure(err);
                     }];

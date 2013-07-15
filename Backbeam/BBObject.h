@@ -93,16 +93,16 @@
 
 // methods that interact with the API
 
-- (BOOL)save:(SuccessObjectBlock)success
+- (void)save:(SuccessObjectBlock)success
      failure:(FailureObjectBlock)failure;
 
-- (BOOL)remove:(SuccessObjectBlock)success
+- (void)remove:(SuccessObjectBlock)success
        failure:(FailureObjectBlock)failure;
 
-- (BOOL)refresh:(SuccessObjectBlock)success
+- (void)refresh:(SuccessObjectBlock)success
         failure:(FailureObjectBlock)failure;
 
-- (BOOL)refresh:(NSString*)joins
+- (void)refresh:(NSString*)joins
          params:(NSArray*)params
         success:(SuccessObjectBlock)success
         failure:(FailureObjectBlock)failure;

@@ -64,18 +64,24 @@
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSDictionary* objects = [result dictionaryForKey:@"objects"];
         if (!objects) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableDictionary* refs = [BBObject objectsWithSession:self._session values:objects references:nil];
         NSArray* ids = [result arrayForKey:@"ids"];
         if (!ids) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
@@ -87,19 +93,25 @@
         }
         NSNumber* totalCount = [result numberForKey:@"count"];
         
-        success(arr, totalCount.integerValue, fromCache);
+        if (success) {
+            success(arr, totalCount.integerValue, fromCache);
+        }
     } failure:^(id result, NSError* error) {
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {
-                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                }
                 return;
             }
             NSString* status = [result stringForKey:@"status"];
             if (![status isEqualToString:@"Success"]) {
-                failure([BBError errorWithStatus:status result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:status result:result]);
+                }
                 return;
             }
-        } else {
+        } else if (failure) {
             failure(error);
         }
     }];
@@ -126,18 +138,24 @@
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSDictionary* objects = [result dictionaryForKey:@"objects"];
         if (!objects) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableDictionary* refs = [BBObject objectsWithSession:self._session values:objects references:nil];
         NSArray* ids = [result arrayForKey:@"ids"];
         if (!ids) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
@@ -150,19 +168,25 @@
         NSNumber* totalCount = [result numberForKey:@"count"];
         NSArray *distances = [result arrayForKey:@"distances"];
         
-        success(arr, totalCount.integerValue, distances, fromCache);
+        if (success) {
+            success(arr, totalCount.integerValue, distances, fromCache);
+        }
     } failure:^(id result, NSError* error) {
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {
-                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                }
                 return;
             }
             NSString* status = [result stringForKey:@"status"];
             if (![status isEqualToString:@"Success"]) {
-                failure([BBError errorWithStatus:status result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:status result:result]);
+                }
                 return;
             }
-        } else {
+        } else if (failure) {
             failure(error);
         }
     }];
@@ -193,18 +217,24 @@
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSDictionary* objects = [result dictionaryForKey:@"objects"];
         if (!objects) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableDictionary* refs = [BBObject objectsWithSession:self._session values:objects references:nil];
         NSArray* ids = [result arrayForKey:@"ids"];
         if (!ids) {
-            failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
             return;
         }
         NSMutableArray* arr = [[NSMutableArray alloc] initWithCapacity:ids.count];
@@ -216,19 +246,25 @@
         }
         NSNumber* totalCount = [result numberForKey:@"count"];
         
-        success(arr, totalCount.integerValue, fromCache);
+        if (success) {
+            success(arr, totalCount.integerValue, fromCache);
+        }
     } failure:^(id result, NSError* error) {
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {
-                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                }
                 return;
             }
             NSString* status = [result stringForKey:@"status"];
             if (![status isEqualToString:@"Success"]) {
-                failure([BBError errorWithStatus:status result:result]);
+                if (failure) {
+                    failure([BBError errorWithStatus:status result:result]);
+                }
                 return;
             }
-        } else {
+        } else if (failure) {
             failure(error);
         }
     }];
