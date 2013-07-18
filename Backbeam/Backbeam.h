@@ -191,6 +191,8 @@
 
 + (void)enableRealTime;
 
++ (void)disableRealTime;
+
 + (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
 
 + (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
