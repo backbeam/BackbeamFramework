@@ -31,6 +31,15 @@
 
 @synthesize webview;
 
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        [NSException raise:@"Use [Backbeam twitterLoginViewController] to create a BBTwitterLoginViewController" format:nil];
+    }
+    return self;
+}
+
 - (id)initWith:(BackbeamSession*)session
 {
     self = [super init];
@@ -51,6 +60,15 @@
     self.success = success;
     self.failure = failure;
     
+    if (!self.twitterConsumerKey) {
+        if (self.failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                self.failure([BBError errorWithStatus:@"MissingTwitterKeys" result:nil]);
+            }];
+        }
+        return;
+    }
+    
     NSURLRequest* req = [self signedRequestWithMethod:@"POST" baseURL:TWITTER_REQUEST_TOKEN_URL params:nil body:nil callback:CALLBACK_URL];
     
     AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
@@ -60,10 +78,19 @@
         self.oauthToken = [bodyParams objectForKey:@"oauth_token"];
         self.oauthTokenSecret = [bodyParams objectForKey:@"oauth_token_secret"];
         
+        if (!self.oauthToken || !self.oauthTokenSecret) {
+            if (self.failure) {
+                self.failure([BBError errorWithStatus:@"UnexpectedTwitterResponse" result:response]);
+            }
+            return;
+        }
+        
         NSString* url = [NSString stringWithFormat:@"https://api.twitter.com/oauth/authenticate?oauth_token=%@", self.oauthToken];
         [webview loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:url]]];
     } failure:^(AFHTTPRequestOperation* op, NSError* err) {
-        self.failure(err);
+        if (self.failure) {
+            self.failure(err);
+        }
     }];
     [operation start];
 }
@@ -189,18 +216,23 @@
                             self.success(user, extraInfo, isNew);
                         }
                     } failure:^(NSError* err) {
-                        self.failure(err);
+                        if (self.failure) {
+                            self.failure(err);
+                        }
                     }];
                 } failure:^(AFHTTPRequestOperation* op, NSError* err) {
-                    NSLog(@"error %@ %@", err, op.responseString);
-                    self.failure(err);
+                    if (self.failure) {
+                        self.failure(err);
+                    }
                 }];
                 [operation start];
             }
 
         } else {
             // parameters missing. should never happen
-            self.failure([BBError errorWithStatus:@"OAuthParametersMissing" result:nil]);
+            if (self.failure) {
+                self.failure([BBError errorWithStatus:@"OAuthParametersMissing" result:nil]);
+            }
         }
         return NO;
     }
