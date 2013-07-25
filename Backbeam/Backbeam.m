@@ -202,6 +202,26 @@
     return YES;
 }
 
+- (NSArray*)subscribedRealTimeEvents {
+    return [self.roomDelegates allKeys];
+}
+
+- (void)unsubscribeAllRealTimeEventDelegates {
+    [self.roomDelegates removeAllObjects];
+}
+
+- (void)unsubscribeAllRealTimeConnectionDelegates {
+    [self.realTimeDelegates removeAllObjects];
+}
+
+- (BOOL)isRealTimeEnabled {
+    return self.socketio != nil;
+}
+
+- (BOOL)isRealTimeConnected {
+    return self.socketio != nil && [self.socketio isConnected];
+}
+
 - (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {
     NSString* room = [self roomName:event];
     NSMutableArray* delegates = (NSMutableArray*)[self.roomDelegates arrayForKey:room];
@@ -398,7 +418,9 @@
             if (result) {
                 read = YES;
                 if (success) {
-                    success(result, YES);
+                    [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                        success(result, YES);
+                    }];
                 }
                 if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
                     return;
@@ -468,7 +490,9 @@
             if (result) {
                 read = YES;
                 if (success) {
-                    success(result, YES, nil);
+                    [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                        success(result, YES, nil);
+                    }];
                 }
                 if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
                     return;
@@ -1383,6 +1407,26 @@
 
 + (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate {
     return [[BackbeamSession instance] unsubscribeFromRealTimeEvents:event delegate:delegate];
+}
+
++ (NSArray*)subscribedRealTimeEvents {
+    return [[BackbeamSession instance] subscribedRealTimeEvents];
+}
+
++ (void)unsubscribeAllRealTimeEventDelegates {
+    [[BackbeamSession instance] unsubscribeAllRealTimeEventDelegates];
+}
+
++ (void)unsubscribeAllRealTimeConnectionDelegates {
+    [[BackbeamSession instance] unsubscribeAllRealTimeConnectionDelegates];
+}
+
++ (BOOL)isRealTimeEnabled {
+    return [[BackbeamSession instance] isRealTimeEnabled];
+}
+
++ (BOOL)isRealTimeConnected {
+    return [[BackbeamSession instance] isRealTimeConnected];
 }
 
 + (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate {

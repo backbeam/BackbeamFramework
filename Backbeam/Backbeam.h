@@ -141,6 +141,16 @@
 + (void)subscribedChannels:(SuccessArrayBlock)success
                    failure:(FailureBlock)failure;
 
++ (NSArray*)subscribedRealTimeEvents;
+
++ (void)unsubscribeAllRealTimeEventDelegates;
+
++ (void)unsubscribeAllRealTimeConnectionDelegates;
+
++ (BOOL)isRealTimeEnabled;
+
++ (BOOL)isRealTimeConnected;
+
 + (void)unsubscribeFromAllChannels:(SuccessBlock)success
                            failure:(FailureBlock)failure;
 
