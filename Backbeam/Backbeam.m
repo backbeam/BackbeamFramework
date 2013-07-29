@@ -17,6 +17,7 @@
 #import "BBCache.h"
 #import "JSONKit.h"
 #import "BBError.h"
+#import "SocketIOPacket.h"
 
 #if !__has_feature(objc_arc)
 #error Backbeam must be built with ARC.
