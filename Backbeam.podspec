@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "Backbeam"
-  s.version      = "0.10.3"
+  s.version      = "0.10.4"
   s.summary      = "iOS SDK for backbeam.io."
   s.homepage     = "http://backbeam.io/documentation-ios"
 
@@ -15,5 +15,5 @@ Pod::Spec.new do |s|
 
   s.dependency 'AFNetworking', '~> 1.1.0'
   s.dependency 'JSONKit', '~> 1.4.0'
-  s.dependency 'socket.IO', '~> 0.2.5'
+  s.dependency 'socket.IO', '~> 0.3.3'
 end
