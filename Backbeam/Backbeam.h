@@ -61,7 +61,7 @@
        success:(SuccessBlock)success
        failure:(FailureOperationBlock)failure;
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (UIImage*)image:(NSString*)identifier
           version:(NSNumber*)version
          withSize:(CGSize)size

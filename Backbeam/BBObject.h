@@ -109,7 +109,7 @@
 
 // methods for files
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (UIImage*)imageWithSize:(CGSize)size
                   success:(SuccessImageBlock)success;
 

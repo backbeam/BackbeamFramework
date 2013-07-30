@@ -342,7 +342,7 @@
     self.twitterConsumerSecret = twitterConsumerSecret;
 }
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (BBTwitterLoginViewController*)twitterLoginViewController {
     BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] initWith:self];
     vc.twitterConsumerKey = self.twitterConsumerKey;
@@ -701,7 +701,7 @@
     [operation start];
 }
 
-#if TARGET_OS_IPHONE
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (UIImage*)image:(NSString*)identifier
           version:(NSNumber*)version
          withSize:(CGSize)size
@@ -966,7 +966,7 @@
     } else {
         NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:authCode, @"auth", user, @"user", nil];
         NSData* data = [NSKeyedArchiver archivedDataWithRootObject:dict];
-#if TARGET_OS_IPHONE
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
         [data writeToFile:[self userPath] options:NSDataWritingAtomic|NSDataWritingFileProtectionComplete error:nil];
 #else
         [data writeToFile:[self userPath] options:NSDataWritingAtomic error:nil];
@@ -1267,7 +1267,7 @@
     [[BackbeamSession instance] setTwitterConsumerKey:twitterConsumerKey consumerSecret:twitterConsumerSecret];
 }
 
-#if TARGET_OS_IPHONE
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 + (BBTwitterLoginViewController*)twitterLoginViewController {
     return [[BackbeamSession instance] twitterLoginViewController];
 }
