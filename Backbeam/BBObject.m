@@ -487,6 +487,7 @@
     return [NSString stringWithFormat:@"entity=%@ identifier=%@ fields=%@", self.entity, self.identifier, self._fields];
 }
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED
 - (UIImage*)imageWithSize:(CGSize)size
                   success:(SuccessImageBlock)success {
     
@@ -522,6 +523,8 @@
         }
     }];
 }
+
+#endif
 
 // upload data
 

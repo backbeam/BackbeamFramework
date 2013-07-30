@@ -30,7 +30,10 @@ typedef void(^FailureControllerBlock)(id result, NSError* err);
 typedef void(^SuccessBlock)();
 typedef void(^FailureBlock)(NSError *err);
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED
 typedef void(^SuccessImageBlock)(UIImage *img);
+#endif
+
 typedef void(^SuccessArrayBlock)(NSArray *array);
 
 typedef void(^SuccessQueryBlock)(NSArray* objects, NSInteger totalCount, BOOL fromCache);

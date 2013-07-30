@@ -109,6 +109,7 @@
 
 // methods for files
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED
 - (UIImage*)imageWithSize:(CGSize)size
                   success:(SuccessImageBlock)success;
 
@@ -120,6 +121,7 @@
                  progress:(ProgressDataBlock)progress
                   success:(SuccessImageBlock)success
                   failure:(FailureObjectBlock)failure;
+#endif
 
 // upload data
 

@@ -6,6 +6,8 @@
 //  Copyright (c) 2012 Level Apps S.L. All rights reserved.
 //
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED
+
 #import "BBTwitterLoginViewController.h"
 #import "AFNetworking.h"
 #import "BBUtils.h"
@@ -240,3 +242,5 @@
 }
 
 @end
+
+#endif

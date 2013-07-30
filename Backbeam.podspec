@@ -8,7 +8,8 @@ Pod::Spec.new do |s|
   s.author       = { "The Backbeam Team" => "contact@backbeam.io" }
   s.source       = { :git => "https://github.com/backbeam/BackbeamFramework.git", :tag => "0.10.4" }
 
-  s.platform     = :ios, '5.0'
+  s.ios.deployment_target = '5.0'
+  s.osx.deployment_target = '10.7'
   s.source_files = 'Backbeam'
   s.resources    = "Backbeam/*.xib"
   s.requires_arc = true
