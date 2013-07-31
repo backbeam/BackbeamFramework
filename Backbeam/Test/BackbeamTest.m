@@ -109,6 +109,8 @@
         }];
     }];
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 #if TARGET_IPHONE_SIMULATOR
     
 //    [self test:@"Push notifications should not work if deviceToken is not set" done:^(DoneBlock done) {
@@ -139,6 +141,7 @@
         }];
     }];
     
+#endif
 #endif
     
     [self test:@"Register, login" done:^(DoneBlock done) {

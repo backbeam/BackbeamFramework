@@ -342,12 +342,14 @@
     self.twitterConsumerSecret = twitterConsumerSecret;
 }
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (BBTwitterLoginViewController*)twitterLoginViewController {
     BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] initWith:self];
     vc.twitterConsumerKey = self.twitterConsumerKey;
     vc.twitterConsumerSecret = self.twitterConsumerSecret;
     return vc;
 }
+#endif
 
 - (NSString*)sign:(NSMutableDictionary*)params {
     return [self sign:params withNonce:YES];
@@ -699,6 +701,7 @@
     [operation start];
 }
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (UIImage*)image:(NSString*)identifier
           version:(NSNumber*)version
          withSize:(CGSize)size
@@ -741,6 +744,7 @@
     } failure:failure];
     return nil;
 }
+#endif
 
 - (void)downloadPath:(NSString*)path progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {
     NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:nil];
@@ -962,7 +966,11 @@
     } else {
         NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:authCode, @"auth", user, @"user", nil];
         NSData* data = [NSKeyedArchiver archivedDataWithRootObject:dict];
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
         [data writeToFile:[self userPath] options:NSDataWritingAtomic|NSDataWritingFileProtectionComplete error:nil];
+#else
+        [data writeToFile:[self userPath] options:NSDataWritingAtomic error:nil];
+#endif
     }
 }
 
@@ -1259,9 +1267,11 @@
     [[BackbeamSession instance] setTwitterConsumerKey:twitterConsumerKey consumerSecret:twitterConsumerSecret];
 }
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 + (BBTwitterLoginViewController*)twitterLoginViewController {
     return [[BackbeamSession instance] twitterLoginViewController];
 }
+#endif
 
 + (void)persistDeviceToken:(NSData*)data {
     [[BackbeamSession instance] persistDeviceToken:data];

@@ -6,6 +6,8 @@
 //  Copyright (c) 2012 Level Apps S.L. All rights reserved.
 //
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 #import <UIKit/UIKit.h>
 #import "BBObject.h"
 
@@ -22,4 +24,10 @@
 - (void)signup:(SuccessTwitterBlock)success
        failure:(FailureTwitterBlock)failure;
 
+- (void)signup:(SuccessTwitterBlock)success
+       failure:(FailureTwitterBlock)failure
+      progress:(ProgressTwitterBlock)progress;
+
 @end
+
+#endif

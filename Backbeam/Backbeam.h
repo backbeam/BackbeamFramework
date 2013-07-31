@@ -61,12 +61,14 @@
        success:(SuccessBlock)success
        failure:(FailureOperationBlock)failure;
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (UIImage*)image:(NSString*)identifier
           version:(NSNumber*)version
          withSize:(CGSize)size
          progress:(ProgressDataBlock)progress
           success:(SuccessImageBlock)success
           failure:(FailureBlock)failure;
+#endif
 
 - (void)setCurrentUser:(BBObject*)user withAuthCode:(NSString*)code;
 

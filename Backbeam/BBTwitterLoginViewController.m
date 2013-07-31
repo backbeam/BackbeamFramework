@@ -6,6 +6,8 @@
 //  Copyright (c) 2012 Level Apps S.L. All rights reserved.
 //
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 #import "BBTwitterLoginViewController.h"
 #import "AFNetworking.h"
 #import "BBUtils.h"
@@ -23,7 +25,10 @@
 @property (nonatomic, strong) NSString* oauthTokenSecret;
 @property (nonatomic, copy) SuccessTwitterBlock success;
 @property (nonatomic, copy) FailureTwitterBlock failure;
+@property (nonatomic, copy) ProgressTwitterBlock progress;
 @property (nonatomic, strong) BackbeamSession* _session;
+
+@property (nonatomic, assign) BOOL waitingToFinish;
 
 @end
 
@@ -57,8 +62,15 @@
 }
 
 - (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure {
+    [self signup:success failure:failure progress:nil];
+}
+
+- (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure progress:(ProgressTwitterBlock)progress {
     self.success = success;
     self.failure = failure;
+    self.progress = progress;
+    
+    self.waitingToFinish = NO;
     
     if (!self.twitterConsumerKey) {
         if (self.failure) {
@@ -67,6 +79,10 @@
             }];
         }
         return;
+    }
+    
+    if (self.progress) {
+        self.progress(BBTwitterProgressLoadingAuthorizationPage);
     }
     
     NSURLRequest* req = [self signedRequestWithMethod:@"POST" baseURL:TWITTER_REQUEST_TOKEN_URL params:nil body:nil callback:CALLBACK_URL];
@@ -85,6 +101,7 @@
             return;
         }
         
+        self.waitingToFinish = YES;
         NSString* url = [NSString stringWithFormat:@"https://api.twitter.com/oauth/authenticate?oauth_token=%@", self.oauthToken];
         [webview loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:url]]];
     } failure:^(AFHTTPRequestOperation* op, NSError* err) {
@@ -183,6 +200,9 @@
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
     NSString* str = [request.URL description];
     if ([str hasPrefix:CALLBACK_URL]) {
+        if (self.progress) {
+            self.progress(BBTwitterProgressRedirecting);
+        }
         NSRange r = [str rangeOfString:@"?"];
         if (r.location != NSNotFound) {
             NSString* query = [str substringFromIndex:r.location+r.length];
@@ -212,6 +232,7 @@
                                                    screenName, @"twitter_screen_name",
                                                    oauthToken, @"oauth_token",
                                                    oauthTokenSecret, @"oauth_token_secret", nil];
+                        
                         if (self.success) {
                             self.success(user, extraInfo, isNew);
                         }
@@ -235,8 +256,24 @@
             }
         }
         return NO;
+    } else if ([str hasPrefix:TWITTER_AUTHORIZE_URL] && navigationType == UIWebViewNavigationTypeFormSubmitted) {
+        if (self.progress) {
+            self.progress(BBTwitterProgressAuthorizating);
+        }
     }
     return YES;
 }
 
+- (void)webViewDidStartLoad:(UIWebView *)webView {
+}
+
+- (void)webViewDidFinishLoad:(UIWebView *)webView {
+    if (self.progress && self.waitingToFinish) {
+        self.waitingToFinish = NO;
+        self.progress(BBTwitterProgressLoadedAuthorizationPage);
+    }
+}
+
 @end
+
+#endif
