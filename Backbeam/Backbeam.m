@@ -16,10 +16,14 @@
 #import "BBQuery.h"
 #import "BBCache.h"
 #import "BBError.h"
-#import "SocketIOPacket.h"
 #import "BBOAuth1a.h"
-#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+#import "SocketIOPacket.h"
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
 #import <Social/Social.h>
+#endif
 #endif
 
 #if !__has_feature(objc_arc)
@@ -58,7 +62,10 @@
 
 @property (nonatomic, strong) NSMutableDictionary *roomDelegates;
 @property (nonatomic, strong) NSMutableArray *realTimeDelegates;
+
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 @property (nonatomic, strong) SocketIO *socketio;
+#endif
 @property (nonatomic, assign) NSInteger delay;
 
 @end
@@ -145,6 +152,7 @@
     self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
 }
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (void)connect {
     for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
         [delegate realTimeConnecting];
@@ -340,12 +348,6 @@
     [self.realTimeDelegates removeObject:delegate];
 }
 
-- (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
-    self.twitterConsumerKey = twitterConsumerKey;
-    self.twitterConsumerSecret = twitterConsumerSecret;
-}
-
-#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (BBTwitterLoginViewController*)twitterLoginViewController {
     BBOAuth1a *oauthClient = [[BBOAuth1a alloc] init];
     oauthClient.consumerKey = self.twitterConsumerKey;
@@ -413,6 +415,11 @@
 }
 #endif
 #endif
+
+- (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
+    self.twitterConsumerKey = twitterConsumerKey;
+    self.twitterConsumerSecret = twitterConsumerSecret;
+}
 
 - (NSString*)sign:(NSMutableDictionary*)params {
     return [self sign:params withNonce:YES];
@@ -1473,6 +1480,7 @@
     [[BackbeamSession instance] requestObjectsFromController:path method:method params:params fetchPolicy:fetchPolicy success:success failure:failure];
 }
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 + (void)enableRealTime {
     [[BackbeamSession instance] enableRealTime];
 }
@@ -1520,6 +1528,7 @@
 + (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message {
     return [[BackbeamSession instance] sendRealTimeEvent:event message:message];
 }
+#endif
 
 + (void)setProtocol:(NSString *)protocol {
     [[BackbeamSession instance] setProtocol:protocol];

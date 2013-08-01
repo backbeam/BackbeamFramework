@@ -16,10 +16,13 @@
 #import "BBJoinResult.h"
 #import "BBPushNotification.h"
 #import "BBTwitterLoginViewController.h"
+
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 #import "SocketIO.h"
 
-#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
 #import <Accounts/Accounts.h>
+#endif
 #endif
 
 @class BBQuery;
@@ -42,6 +45,11 @@
 - (void)realTimeEventReceived:(NSString*)event message:(NSDictionary*)message;
 
 @end
+
+#if !defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+@protocol SocketIODelegate
+@end
+#endif
 
 @interface BackbeamSession : NSObject<SocketIODelegate>
 
