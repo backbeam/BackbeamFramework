@@ -14,7 +14,6 @@ Pod::Spec.new do |s|
   s.resources    = "Backbeam/*.xib"
   s.requires_arc = true
 
-  s.dependency 'AFNetworking', '~> 1.1.0'
-  s.dependency 'JSONKit', '~> 1.4.0'
+  s.dependency 'AFNetworking', '~> 1.3.1'
   s.dependency 'socket.IO', '~> 0.3.3'
 end

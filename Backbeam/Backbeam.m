@@ -15,7 +15,6 @@
 #import "BBError.h"
 #import "BBQuery.h"
 #import "BBCache.h"
-#import "JSONKit.h"
 #import "BBError.h"
 #import "SocketIOPacket.h"
 
@@ -417,7 +416,7 @@
         NSData* data = [self.queryCache read:cacheKey];
         BOOL read = NO;
         if (data) {
-            id result = [[[JSONDecoder alloc] init] objectWithData:data];
+            id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
             if (result) {
                 read = YES;
                 if (success) {
@@ -489,7 +488,7 @@
         NSData* data = [self.queryCache read:cacheKey];
         BOOL read = NO;
         if (data) {
-            id result = [[[JSONDecoder alloc] init] objectWithData:data];
+            id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
             if (result) {
                 read = YES;
                 if (success) {
