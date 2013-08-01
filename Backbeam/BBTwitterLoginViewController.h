@@ -18,6 +18,11 @@
 
 @property (strong, nonatomic) IBOutlet UIWebView *webview;
 
+@property (strong, nonatomic) NSString *join;
+@property (strong, nonatomic) NSArray *params;
+
+@property (nonatomic, strong) BBOAuth1a *oauthClient;
+
 - (id)initWith:(BackbeamSession*)session oauthClient:(BBOAuth1a*)oauthClient;
 
 - (void)signup:(SuccessTwitterBlock)success

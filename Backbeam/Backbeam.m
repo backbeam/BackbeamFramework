@@ -1234,6 +1234,53 @@
     }];
 }
 
+- (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
+                   oauthTokenSecret:(NSString*)oauthTokenSecret
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    
+    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
+                                       oauthTokenSecret, @"oauth_token_secret", nil];
+    
+    [self socialSignup:@"twitter" params:postParams success:^(BBObject* user, BOOL isNew) {
+        if (success) {
+            success(user, isNew);
+        }
+    } failure:^(NSError* err) {
+        if (failure) {
+            failure(err);
+        }
+    }];
+    
+}
+
+- (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
+                   oauthTokenSecret:(NSString*)oauthTokenSecret
+                               join:(NSString*)join
+                             params:(NSArray*)params
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    
+    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
+                                       oauthTokenSecret, @"oauth_token_secret", nil];
+    if (join) {
+        [postParams setObject:join forKey:@"joins"];
+        if (params) {
+            [postParams setObject:params forKey:@"params"];
+        }
+    }
+    [self socialSignup:@"twitter" params:postParams success:^(BBObject* user, BOOL isNew) {
+        if (success) {
+            success(user, isNew);
+        }
+    } failure:^(NSError* err) {
+        if (failure) {
+            failure(err);
+        }
+    }];
+    
+}
+
 - (void)facebookSignupWithAccessToken:(NSString*)accessToken
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure {
@@ -1405,6 +1452,22 @@
 
 + (void)loginWithEmail:(NSString*)email password:(NSString*)password success:(SuccessObjectBlock)success failure:(FailureBlock)failure {
     [[BackbeamSession instance] loginWithEmail:email password:password join:nil params:nil success:success failure:failure];
+}
+
++ (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
+                   oauthTokenSecret:(NSString*)oauthTokenSecret
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    [[BackbeamSession instance] twitterSignupWithOAuthToken:oauthToken oauthTokenSecret:oauthTokenSecret success:success failure:failure];
+}
+
++ (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
+                   oauthTokenSecret:(NSString*)oauthTokenSecret
+                               join:(NSString*)join
+                             params:(NSArray*)params
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    [[BackbeamSession instance] twitterSignupWithOAuthToken:oauthToken oauthTokenSecret:oauthTokenSecret join:join params:params success:success failure:failure];
 }
 
 + (void)facebookSignupWithAccessToken:(NSString*)accessToken

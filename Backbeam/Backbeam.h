@@ -117,6 +117,18 @@
 
 + (BBTwitterLoginViewController*)twitterLoginViewController;
 
++ (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
+                   oauthTokenSecret:(NSString*)oauthTokenSecret
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure;
+
++ (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
+                   oauthTokenSecret:(NSString*)oauthTokenSecret
+                               join:(NSString*)join
+                             params:(NSArray*)params
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure;
+
 + (void)facebookSignupWithAccessToken:(NSString*)accessToken
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure;

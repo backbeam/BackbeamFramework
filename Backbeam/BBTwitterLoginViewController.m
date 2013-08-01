@@ -26,7 +26,6 @@
 @property (nonatomic, copy) ProgressTwitterBlock progress;
 
 @property (nonatomic, strong) BackbeamSession* _session;
-@property (nonatomic, strong) BBOAuth1a* oauthClient;
 
 @property (nonatomic, assign) BOOL waitingToFinish;
 
@@ -156,8 +155,15 @@
                     NSString* screenName       = [bodyParams objectForKey:@"screen_name"];
                     NSString* userId           = [bodyParams objectForKey:@"user_id"];
                     
-                    NSDictionary* postParams = [NSDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
-                                                oauthTokenSecret, @"oauth_token_secret", nil];
+                    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObjectsAndKeys:oauthToken, @"oauth_token",
+                                                       oauthTokenSecret, @"oauth_token_secret", nil];
+                    
+                    if (self.join) {
+                        [postParams setObject:self.join forKey:@"joins"];
+                        if (self.params) {
+                            [postParams setObject:self.params forKey:@"params"];
+                        }
+                    }
                     
                     [self._session socialSignup:@"twitter" params:postParams success:^(BBObject* user, BOOL isNew) {
                         NSDictionary* extraInfo = [NSDictionary dictionaryWithObjectsAndKeys:userId, @"twitter_user_id",
