@@ -10,16 +10,15 @@
 
 #import <UIKit/UIKit.h>
 #import "BBObject.h"
+#import "BBOAuth1a.h"
 
 @class BackbeamSession;
 
 @interface BBTwitterLoginViewController : UIViewController <UIWebViewDelegate>
 
 @property (strong, nonatomic) IBOutlet UIWebView *webview;
-@property (nonatomic, strong) NSString* twitterConsumerKey;
-@property (nonatomic, strong) NSString* twitterConsumerSecret;
 
-- (id)initWith:(BackbeamSession*)session;
+- (id)initWith:(BackbeamSession*)session oauthClient:(BBOAuth1a*)oauthClient;
 
 - (void)signup:(SuccessTwitterBlock)success
        failure:(FailureTwitterBlock)failure;

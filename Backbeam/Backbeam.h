@@ -18,6 +18,10 @@
 #import "BBTwitterLoginViewController.h"
 #import "SocketIO.h"
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+#import <Accounts/Accounts.h>
+#endif
+
 @class BBQuery;
 @class BBTwitterLoginViewController;
 
@@ -232,5 +236,13 @@
                          fetchPolicy:(BBFetchPolicy)fetchPolicy
                              success:(SuccessNearQueryBlock)success
                              failure:(FailureQueryBlock)failure;
+
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+
++ (void)twitterReverseOAuthWithAccount:(ACAccount*)account
+                               success:(SuccessReverseOauthBlock)success
+                               failure:(FailureReverseOauthBlock)failure;
+
+#endif
 
 @end

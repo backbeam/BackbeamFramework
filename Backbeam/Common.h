@@ -57,6 +57,9 @@ typedef void(^FailureUserBlock)(BBUser* user, NSError* err);
 typedef void(^ProgressDataObjectBlock)(BBObject* object, NSInteger lastBytesSentCount, long long sentBytes, long long totalBytes);
 typedef void(^SuccessDownloadBlock)(BBObject* object, NSData*);
 
+typedef void(^SuccessReverseOauthBlock)(NSDictionary *params);
+typedef void(^FailureReverseOauthBlock)(NSError *err);
+
 typedef void(^SuccessSocialSignupBlock)(BBObject* user, BOOL isNew);
 typedef void(^FailureSocialSignupBlock)(NSError* err);
 

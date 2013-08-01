@@ -17,6 +17,10 @@
 #import "BBCache.h"
 #import "BBError.h"
 #import "SocketIOPacket.h"
+#import "BBOAuth1a.h"
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+#import <Social/Social.h>
+#endif
 
 #if !__has_feature(objc_arc)
 #error Backbeam must be built with ARC.
@@ -343,11 +347,71 @@
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 - (BBTwitterLoginViewController*)twitterLoginViewController {
-    BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] initWith:self];
-    vc.twitterConsumerKey = self.twitterConsumerKey;
-    vc.twitterConsumerSecret = self.twitterConsumerSecret;
+    BBOAuth1a *oauthClient = [[BBOAuth1a alloc] init];
+    oauthClient.consumerKey = self.twitterConsumerKey;
+    oauthClient.consumerSecret = self.twitterConsumerSecret;
+    BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] initWith:self oauthClient:oauthClient];
     return vc;
 }
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+// based on https://dev.twitter.com/docs/ios/using-reverse-auth
+- (void)twitterReverseOAuthWithAccount:(ACAccount*)account success:(SuccessReverseOauthBlock)success failure:(FailureReverseOauthBlock)failure {
+    
+    BBOAuth1a *oauthClient = [[BBOAuth1a alloc] init];
+    oauthClient.consumerKey    = self.twitterConsumerKey;
+    oauthClient.consumerSecret = self.twitterConsumerSecret;
+
+    NSDictionary *params = [NSDictionary dictionaryWithObject:@"reverse_auth" forKey:@"x_auth_mode"];
+    NSURLRequest *request = [oauthClient signedRequestWithMethod:@"POST"
+                                                         baseURL:@"https://api.twitter.com/oauth/request_token"
+                                                          params:params body:nil callback:nil];
+    
+    AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation* op, id res) {
+        
+        NSDictionary *step2Params = [[NSMutableDictionary alloc] init];
+        [step2Params setValue:self.twitterConsumerKey forKey:@"x_reverse_auth_target"];
+        [step2Params setValue:op.responseString forKey:@"x_reverse_auth_parameters"];
+        
+        NSURL *url = [NSURL URLWithString:@"https://api.twitter.com/oauth/access_token"];
+        SLRequest *stepTwoRequest = [SLRequest requestForServiceType:SLServiceTypeTwitter
+                                                       requestMethod:SLRequestMethodPOST
+                                                                 URL:url
+                                                          parameters:step2Params];
+        
+        [stepTwoRequest setAccount:account];
+        [stepTwoRequest performRequestWithHandler:^(NSData *responseData, NSHTTPURLResponse *urlResponse, NSError *error) {
+            NSString *responseStr = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
+            
+            if (error) {
+                if (failure) {
+                    failure(error);
+                }
+                return;
+            }
+            
+            NSDictionary* bodyParams = [BBUtils parseQueryString:responseStr];
+            
+//            NSString* oauthToken       = [bodyParams objectForKey:@"oauth_token"];
+//            NSString* oauthTokenSecret = [bodyParams objectForKey:@"oauth_token_secret"];
+//            NSString* screenName       = [bodyParams objectForKey:@"screen_name"];
+//            NSString* userId           = [bodyParams objectForKey:@"user_id"];
+            
+            if (success) {
+                success(bodyParams);
+            }
+         }];
+    } failure:^(AFHTTPRequestOperation* op, NSError* error) {
+        if (failure) {
+            failure(error);
+        }
+    }];
+    [operation start];
+    
+    
+}
+#endif
 #endif
 
 - (NSString*)sign:(NSMutableDictionary*)params {
@@ -1270,6 +1334,12 @@
 + (BBTwitterLoginViewController*)twitterLoginViewController {
     return [[BackbeamSession instance] twitterLoginViewController];
 }
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
++ (void)twitterReverseOAuthWithAccount:(ACAccount*)account success:(SuccessReverseOauthBlock)success failure:(FailureReverseOauthBlock)failure {
+    [[BackbeamSession instance] twitterReverseOAuthWithAccount:account success:success failure:failure];
+}
+#endif
 #endif
 
 + (void)persistDeviceToken:(NSData*)data {
