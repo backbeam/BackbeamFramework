@@ -11,6 +11,7 @@
 #import <CommonCrypto/CommonCryptor.h>
 #import <CommonCrypto/CommonHMAC.h>
 #import "BBObject.h"
+#import "BBCollectionConstraint.h"
 
 @implementation BBUtils
 
@@ -144,6 +145,8 @@
         value = [NSString stringWithFormat:@"%f,%f,%f|%@",
                         location.latitude, location.longitude,
                         location.altitude, location.address];
+    } else if ([obj isKindOfClass:[BBCollectionConstraint class]]) {
+        return [obj description];
     }
     return value;
 }

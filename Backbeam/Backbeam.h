@@ -16,6 +16,7 @@
 #import "BBJoinResult.h"
 #import "BBPushNotification.h"
 #import "BBTwitterLoginViewController.h"
+#import "BBCollectionConstraint.h"
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 #import "SocketIO.h"
