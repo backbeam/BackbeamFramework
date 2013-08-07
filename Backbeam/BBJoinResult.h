@@ -8,7 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
-@interface BBJoinResult : NSObject
+@interface BBJoinResult : NSObject <NSCoding>
 
 @property (nonatomic, assign) NSInteger count;
 @property (nonatomic, strong) NSArray* objects;
