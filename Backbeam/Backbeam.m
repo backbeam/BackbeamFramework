@@ -170,7 +170,7 @@
 }
 
 - (void)disableRealTime {
-    if (self.socketio && !self.socketio.isConnected && !self.socketio.isConnecting) {
+    if (self.socketio) {
         self.socketio.delegate = nil;
         [self.socketio disconnect];
         self.socketio = nil;
@@ -179,10 +179,6 @@
 }
 
 - (void)connectAfterDelay {
-    if (self.socketio && (self.socketio.isConnecting || self.socketio.isConnected)) {
-        return;
-    }
-    
     static NSInteger maxDelay = 10;
     
     self.delay++;
@@ -193,6 +189,9 @@
     double delayInSeconds = self.delay;
     dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
     dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        if (!self.socketio || self.socketio.isConnecting || self.socketio.isConnected) {
+            return;
+        }
         [self connect];
     });
 }
@@ -421,10 +420,49 @@
     self.twitterConsumerSecret = twitterConsumerSecret;
 }
 
-- (NSString*)sign:(NSMutableDictionary*)params {
-    return [self sign:params withNonce:YES];
+- (NSString*)signature:(NSDictionary*)params {
+    NSMutableString* parameterString = [[NSMutableString alloc] init];
+    NSArray* sortedKeys = [[params allKeys] sortedArrayUsingSelector:@selector(compare:)];
+    for (NSString* key in sortedKeys) {
+        id value = [params objectForKey:key];
+        if ([value isKindOfClass:[NSArray class]]) {
+            NSArray* arr = [(NSArray*)value sortedArrayUsingSelector:@selector(compare:)];
+            for (id val in arr) {
+                [parameterString appendFormat:@"&%@=%@", key, val];
+            }
+        } else {
+            [parameterString appendFormat:@"&%@=%@", key, value];
+        }
+    }
+    [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
+    
+    NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
+    return [hmac base64EncodedString];
 }
 
+- (NSString*)cacheString:(NSMutableDictionary*)cacheParams {
+    NSMutableDictionary *params = [NSMutableDictionary dictionaryWithDictionary:cacheParams];
+    [params setObject:self.project forKey:@"project"];
+    [params setObject:self.env     forKey:@"env"];
+    [params setObject:self.host    forKey:@"host"];
+    
+    NSMutableString* cacheKeyString = [[NSMutableString alloc] init];
+    NSArray* sortedKeys = [[params allKeys] sortedArrayUsingSelector:@selector(compare:)];
+    for (NSString* key in sortedKeys) {
+        id value = [params objectForKey:key];
+        if ([value isKindOfClass:[NSArray class]]) {
+            NSArray* arr = [(NSArray*)value sortedArrayUsingSelector:@selector(compare:)];
+            for (id val in arr) {
+                [cacheKeyString appendFormat:@"&%@=%@", key, val];
+            }
+        } else {
+            [cacheKeyString appendFormat:@"&%@=%@", key, value];
+        }
+    }
+    return [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
+}
+
+/*
 - (NSString*)sign:(NSMutableDictionary*)params withNonce:(BOOL)withNonce {
     [params setObject:self.sharedKey forKey:@"key"];
     if (withNonce) {
@@ -459,6 +497,7 @@
     
     return cacheKeyString;
 }
+ */
 
 - (void)perform:(NSString*)httpMethod
            path:(NSString*)path
@@ -474,16 +513,14 @@
         [params setObject:self.authCode forKey:@"auth"];
     }
     
-    NSString *cacheKeyString = [self sign:params];
-    [params removeObjectForKey:@"method"];
-    [params removeObjectForKey:@"path"];
+    [params setObject:self.sharedKey forKey:@"key"];
     
     NSString* cacheKey = nil;
     BOOL useCache    = fetchPolicy == BBFetchPolicyLocalOnly
                     || fetchPolicy == BBFetchPolicyLocalAndRemote
                     || fetchPolicy == BBFetchPolicyLocalOrRemote;
     if (useCache) {
-        cacheKey = [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
+        cacheKey = [self cacheString:params];
         NSData* data = [self.queryCache read:cacheKey];
         BOOL read = NO;
         if (data) {
@@ -507,6 +544,12 @@
             return;
         }
     }
+    
+    [params setObject:[BBUtils nonce] forKey:@"nonce"];
+    [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+    [params setObject:[self signature:params] forKey:@"signature"];
+    [params removeObjectForKey:@"method"];
+    [params removeObjectForKey:@"path"];
     
     NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
     __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
@@ -549,12 +592,22 @@
     }
     [req setValue:@"ios" forHTTPHeaderField:@"x-backbeam-sdk"];
     
+    NSMutableDictionary *prms = [NSMutableDictionary dictionaryWithDictionary:params];
+    [prms setObject:method forKey:@"method"];
+    [prms setObject:path   forKey:@"path"];
+    if (self.authCode) {
+        [prms setObject:self.authCode forKey:@"auth"];
+    }
+    if (self._webVersion) {
+        [prms setObject:self._webVersion forKey:@"version"];
+    }
+    
     NSString* cacheKey = nil;
     BOOL useCache = fetchPolicy == BBFetchPolicyLocalOnly
                  || fetchPolicy == BBFetchPolicyLocalAndRemote
                  || fetchPolicy == BBFetchPolicyLocalOrRemote;
     if (useCache) {
-        NSString *cacheKeyString = [self sign:[[NSMutableDictionary alloc] initWithDictionary:params]];
+        NSString *cacheKeyString = [self cacheString:prms];
         cacheKey = [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
         NSData* data = [self.queryCache read:cacheKey];
         BOOL read = NO;
@@ -790,12 +843,12 @@
     } else {
         path = [NSString stringWithFormat:@"/data/file/download/%@", identifier];
     }
-    NSMutableDictionary* params = [NSMutableDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
-    [params setObject:@"GET" forKey:@"method"];
-    [params setObject:path forKey:@"path"];
-    NSString *cacheKey = [self sign:params withNonce:NO];
-    [params removeObjectForKey:@"method"];
-    [params removeObjectForKey:@"path"];
+    NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:width, @"width", height, @"height", nil];
+    NSMutableDictionary *cacheParams = [NSMutableDictionary dictionaryWithDictionary:params];
+    
+    [cacheParams setObject:@"GET" forKey:@"method"];
+    [cacheParams setObject:path   forKey:@"path"];
+    NSString *cacheKey = [self cacheString:cacheParams];
     NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
     
     UIImage* img = [self.imageCache objectForKey:cacheKey];
