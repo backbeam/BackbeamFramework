@@ -904,6 +904,7 @@
     NSString* path = [self.basePath stringByAppendingPathComponent:kDeviceTokenPathComponent];
     // TODO: handle error
     [base64 writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    if(self.deviceToken == nil) self.deviceToken = base64;
 }
 
 - (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
