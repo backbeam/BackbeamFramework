@@ -214,11 +214,21 @@
 }
 
 - (NSArray*)subscribedRealTimeEvents {
-    return [self.roomDelegates allKeys];
+    NSArray *keys = [self.roomDelegates allKeys];
+    NSMutableArray *arr = [[NSMutableArray alloc] initWithCapacity:keys.count];
+    for (NSString *room in keys) {
+        NSArray *components = [room componentsSeparatedByString:@"/"];
+        [arr addObject:[components lastObject]];
+    }
+    return arr;
 }
 
 - (void)unsubscribeAllRealTimeEventDelegates {
     [self.roomDelegates removeAllObjects];
+    if (self.socketio.isConnected) {
+        NSDictionary *params = [NSDictionary dictionary];
+        [self.socketio sendEvent:@"unsubsribe-all" withData:params];
+    }
 }
 
 - (void)unsubscribeAllRealTimeConnectionDelegates {
@@ -358,6 +368,15 @@
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
 // based on https://dev.twitter.com/docs/ios/using-reverse-auth
 - (void)twitterReverseOAuthWithAccount:(ACAccount*)account success:(SuccessReverseOauthBlock)success failure:(FailureReverseOauthBlock)failure {
+    
+    if (!self.twitterConsumerKey || !self.twitterConsumerSecret) {
+        if (failure) {
+            [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                failure([BBError errorWithStatus:@"MissingTwitterKeys" result:nil]);
+            }];
+        }
+        return;
+    }
     
     BBOAuth1a *oauthClient = [[BBOAuth1a alloc] init];
     oauthClient.consumerKey    = self.twitterConsumerKey;
@@ -562,11 +581,24 @@
         }
         
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
+        
+        [self checkInvalidAuthCode:result];
+        
         if (failure) {
             failure(result, err);
         }
     }];
     [operation start];
+}
+
+- (void)checkInvalidAuthCode:(id)result {
+    if ([result isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *dict = (NSDictionary*)result;
+        NSString *status = [dict stringForKey:@"status"];
+        if ([@"InvalidAuthCode" isEqualToString:status]) {
+            [self logout];
+        }
+    }
 }
 
 - (void)requestController:(NSString*)path
@@ -643,6 +675,9 @@
             [self.queryCache write:operation.responseData withKey:cacheKey];
         }
     } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
+        
+        [self checkInvalidAuthCode:result];
+        
         if (failure) {
             failure(result, err);
         }
@@ -902,9 +937,8 @@
 - (void)persistDeviceToken:(NSData*)data {
     NSString* base64 = [data base64EncodedString];
     NSString* path = [self.basePath stringByAppendingPathComponent:kDeviceTokenPathComponent];
-    // TODO: handle error
-    [base64 writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
-    if(self.deviceToken == nil) self.deviceToken = base64;
+    [base64 writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil]; // TODO: handle error
+    self.deviceToken = base64;
 }
 
 - (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {
@@ -941,7 +975,6 @@
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:self.deviceToken, @"token", @"apn", @"gateway", nil];
     
     [self perform:@"GET" path:@"/push/subscribed-channels" params:body fetchPolicy:BBFetchPolicyRemoteOnly success:^(id result, BOOL fromCache) {
-        NSLog(@"result %@", result);
         [self processBasicResponse:result success:^(id result) {
             NSArray *channels = [result arrayForKey:@"channels"];
             if (success) {
