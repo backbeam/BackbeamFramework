@@ -48,6 +48,8 @@
 
 - (NSString*)twitterData:(NSString*)key;
 
+- (NSString*)googlePlusData:(NSString*)key;
+
 - (NSArray*)fieldNames;
 
 // methods for reading fields

@@ -140,6 +140,16 @@
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure;
 
++ (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                success:(SuccessFacebookBlock)success
+                                failure:(FailureFacebookBlock)failure;
+
++ (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                   join:(NSString*)join
+                                 params:(NSArray*)params
+                                success:(SuccessFacebookBlock)success
+                                failure:(FailureFacebookBlock)failure;
+
 + (BBQuery*)queryForEntity:(NSString*)entity;
 
 + (BBObject*)emptyObjectForEntity:(NSString*)entity;

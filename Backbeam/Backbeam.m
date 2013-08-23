@@ -1411,6 +1411,48 @@
     
 }
 
+- (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                success:(SuccessFacebookBlock)success
+                                failure:(FailureFacebookBlock)failure {
+    
+    NSDictionary* postParams = [NSDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
+    [self socialSignup:@"googleplus" params:postParams success:^(BBObject* user, BOOL isNew) {
+        if (success) {
+            success(user, isNew);
+        }
+    } failure:^(NSError* err) {
+        if (failure) {
+            failure(err);
+        }
+    }];
+    
+}
+
+- (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                   join:(NSString*)join
+                                 params:(NSArray*)params
+                                success:(SuccessFacebookBlock)success
+                                failure:(FailureFacebookBlock)failure {
+    
+    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
+    if (join) {
+        [postParams setObject:join forKey:@"joins"];
+        if (params) {
+            [postParams setObject:params forKey:@"params"];
+        }
+    }
+    [self socialSignup:@"googleplus" params:postParams success:^(BBObject* user, BOOL isNew) {
+        if (success) {
+            success(user, isNew);
+        }
+    } failure:^(NSError* err) {
+        if (failure) {
+            failure(err);
+        }
+    }];
+    
+}
+
 - (BBQuery*)queryForEntity:(NSString*)entity {
     return [[BBQuery alloc] initWith:self entity:entity];
 }
@@ -1571,6 +1613,21 @@
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure {
     [[BackbeamSession instance] facebookSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
+}
+
++ (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                success:(SuccessFacebookBlock)success
+                                failure:(FailureFacebookBlock)failure {
+    [[BackbeamSession instance] googlePlusSignupWithAccessToken:accessToken success:success failure:failure];
+}
+
+
++ (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                   join:(NSString*)join
+                                 params:(NSArray*)params
+                                success:(SuccessFacebookBlock)success
+                                failure:(FailureFacebookBlock)failure {
+    [[BackbeamSession instance] googlePlusSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
 }
 
 + (BBQuery*)queryForEntity:(NSString*)entity {

@@ -200,6 +200,10 @@
     return [self loginData:key forProvider:@"tw"];
 }
 
+- (NSString*)googlePlusData:(NSString*)key {
+    return [self loginData:key forProvider:@"gp"];
+}
+
 - (NSString*)identifier {
     return self._identifier;
 }
