@@ -555,8 +555,33 @@
                  mimeType:mimeType
                      path:path
                    params:self._commands
+                     sign:YES
                  progress:progress success:^(id result) {
+                     if (![result isKindOfClass:[NSDictionary class]]) {
+                         if (failure) {
+                             failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+                         }
+                         return;
+                     }
                      NSDictionary* objects = [result dictionaryForKey:@"objects"];
+                     NSString *identifier = [result stringForKey:@"id"];
+                     if (!objects || !identifier) {
+                         if (failure) {
+                             failure(self, [BBError errorWithStatus:@"InvalidResponse" result:result]);
+                         }
+                         return;
+                     }
+                     
+                     NSString *status = [result stringForKey:@"status"];
+                     if (![status isEqualToString:@"Success"]) {
+                         if (failure) {
+                             failure(self, [BBError errorWithStatus:status result:result]);
+                         }
+                         return;
+                     }
+                     
+                     self._identifier = identifier;
+                     
                      NSMutableDictionary* selfDict = [NSMutableDictionary dictionaryWithObject:self forKey:self._identifier];
                      [BBObject objectsWithSession:self._session values:objects references:selfDict];
                      

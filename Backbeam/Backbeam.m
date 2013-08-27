@@ -481,43 +481,6 @@
     return [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
 }
 
-/*
-- (NSString*)sign:(NSMutableDictionary*)params withNonce:(BOOL)withNonce {
-    [params setObject:self.sharedKey forKey:@"key"];
-    if (withNonce) {
-        [params setObject:[BBUtils nonce] forKey:@"nonce"];
-        [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
-    }
-    
-    NSMutableString* parameterString = [[NSMutableString alloc] init];
-    NSMutableString* cacheKeyString = [[NSMutableString alloc] init];
-    NSArray* sortedKeys = [[params allKeys] sortedArrayUsingSelector:@selector(compare:)];
-    for (NSString* key in sortedKeys) {
-        id value = [params objectForKey:key];
-        if ([value isKindOfClass:[NSArray class]]) {
-            NSArray* arr = [(NSArray*)value sortedArrayUsingSelector:@selector(compare:)];
-            for (id val in arr) {
-                [parameterString appendFormat:@"&%@=%@", key, val];
-                [cacheKeyString appendFormat:@"&%@=%@", key, val];
-            }
-        } else {
-            [parameterString appendFormat:@"&%@=%@", key, value];
-            if (![key isEqualToString:@"time"] && ![key isEqualToString:@"nonce"]) {
-                [cacheKeyString appendFormat:@"&%@=%@", key, value];
-            }
-        }
-    }
-    [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
-    
-    NSData* hmac = [BBUtils hmacSha1:[parameterString dataUsingEncoding:NSUTF8StringEncoding] withKey:[self.secretKey dataUsingEncoding:NSUTF8StringEncoding]];
-    NSString* signature = [hmac base64EncodedString];
-    [parameterString deleteCharactersInRange:NSMakeRange(0, 1)];
-    [params setObject:signature forKey:@"signature"];
-    
-    return cacheKeyString;
-}
- */
-
 - (void)perform:(NSString*)httpMethod
            path:(NSString*)path
          params:(NSDictionary*)_params
@@ -588,6 +551,7 @@
             failure(result, err);
         }
     }];
+    
     [operation start];
 }
 
@@ -601,12 +565,14 @@
     }
 }
 
-- (void)requestController:(NSString*)path
-                   method:(NSString*)method
-                   params:(NSDictionary*)params
-              fetchPolicy:(BBFetchPolicy)fetchPolicy
-                  success:(SuccessControllerBlock)success
-                  failure:(FailureControllerBlock)failure {
+- (void)requestDataFromController:(NSString*)path
+                           method:(NSString*)method
+                           params:(NSDictionary*)params
+                      fetchPolicy:(BBFetchPolicy)fetchPolicy
+                   uploadProgress:(ProgressDataBlock)uploadProgress
+                 downloadProgress:(ProgressDataBlock)downloadProgress
+                          success:(SuccessControllerBlock)success
+                          failure:(FailureControllerBlock)failure {
     
     NSString *urlString = nil;
     if (self._webVersion) {
@@ -618,7 +584,41 @@
     if (self._httpAuth) {
         [client setAuthorizationHeaderWithUsername:self.project password:self._httpAuth];
     }
-    NSMutableURLRequest* req = [client requestWithMethod:method path:path parameters:params];
+    
+    NSMutableDictionary *fileParams = [[NSMutableDictionary alloc] initWithCapacity:params.count];
+    NSMutableDictionary *otherParams = [[NSMutableDictionary alloc] initWithCapacity:params.count];
+    
+    for (NSString *key in [params allKeys]) {
+        id obj = [params objectForKey:key];
+        if ([obj isKindOfClass:[BBFileUpload class]]) {
+            [fileParams setObject:obj forKey:key];
+        } else {
+            [otherParams setObject:obj forKey:key];
+        }
+    }
+    
+    NSMutableURLRequest* req = nil;
+    if (fileParams.count > 0) {
+        req = [client multipartFormRequestWithMethod:method
+                                                path:path
+                                          parameters:otherParams
+                           constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+                               
+                               for (NSString *key in fileParams) {
+                                   
+                                   BBFileUpload *fileUpload = (BBFileUpload*)[fileParams objectForKey:key];
+                                   
+                                   [formData appendPartWithFileData:fileUpload.data
+                                                               name:key
+                                                           fileName:fileUpload.fileName
+                                                           mimeType:fileUpload.mimeType];
+                               }
+        }];
+    } else {
+        req = [client requestWithMethod:method path:path parameters:otherParams];
+    }
+    
+    
     if (self.authCode) {
         [req setValue:self.authCode forHTTPHeaderField:@"x-backbeam-auth"];
     }
@@ -644,12 +644,11 @@
         NSData* data = [self.queryCache read:cacheKey];
         BOOL read = NO;
         if (data) {
-            id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
-            if (result) {
+            if (data) {
                 read = YES;
                 if (success) {
                     [[NSOperationQueue currentQueue] addOperationWithBlock:^{
-                        success(result, YES, nil);
+                        success(data, YES, nil);
                     }];
                 }
                 if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
@@ -665,23 +664,31 @@
         }
     }
     
-    __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
-        
+    AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *op, id responseObject) {
         if (success) {
-            success(result, NO, operation.response);
+            success(op.responseData, NO, nil);
         }
-        
         if (useCache) {
-            [self.queryCache write:operation.responseData withKey:cacheKey];
+            [self.queryCache write:op.responseData withKey:cacheKey];
         }
-    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
-        
-        [self checkInvalidAuthCode:result];
-        
+    } failure:^(AFHTTPRequestOperation *op, NSError *err) {
         if (failure) {
-            failure(result, err);
+            failure(op.responseData, err);
         }
     }];
+    
+    if (downloadProgress) {
+        [operation setDownloadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
+            downloadProgress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
+        }];
+    }
+    
+    if (uploadProgress) {
+        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
+            uploadProgress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
+        }];
+    }
     
     [operation start];
 }
@@ -690,10 +697,13 @@
                            method:(NSString*)method
                            params:(NSDictionary*)params
                       fetchPolicy:(BBFetchPolicy)fetchPolicy
+                         progress:(ProgressDataBlock)progress
                           success:(SuccessOperationBlock)success
                           failure:(FailureOperationBlock)failure {
     
-    [self requestController:path method:method params:params fetchPolicy:fetchPolicy success:^(id result, BOOL fromCache, NSHTTPURLResponse *response) {
+    [self requestDataFromController:path method:method params:params fetchPolicy:fetchPolicy uploadProgress:progress downloadProgress:nil success:^(NSData *data, BOOL fromCache, NSHTTPURLResponse *response) {
+        
+        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
         
         NSString* auth   = [[response allHeaderFields] stringForKey:@"x-backbeam-auth"];
         NSString* userid = [[response allHeaderFields] stringForKey:@"x-backbeam-user"];
@@ -709,7 +719,9 @@
         if (success) {
             success(result, fromCache);
         }
-    } failure:^(id result, NSError *error) {
+    } failure:^(NSData *data, NSError *error) {
+        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        
         if (failure) {
             failure(result, error);
         }
@@ -721,10 +733,14 @@
                               method:(NSString*)method
                               params:(NSDictionary*)params
                          fetchPolicy:(BBFetchPolicy)fetchPolicy
+                            progress:(ProgressDataBlock)progress
                              success:(SuccessNearQueryBlock)success
                              failure:(FailureQueryBlock)failure {
     
-    [self requestController:path method:method params:params fetchPolicy:fetchPolicy success:^(id result, BOOL fromCache, NSHTTPURLResponse *response) {
+    [self requestDataFromController:path method:method params:params fetchPolicy:fetchPolicy uploadProgress:progress downloadProgress:nil success:^(NSData *data, BOOL fromCache, NSHTTPURLResponse *response) {
+        
+        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        
         if (![result isKindOfClass:[NSDictionary class]]) {
             if (failure) {
                 failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
@@ -774,7 +790,10 @@
         if (success) {
             success(arr, totalCount.integerValue, distances, fromCache);
         }
-    } failure:^(id result, NSError *error) {
+    } failure:^(NSData *data, NSError *error) {
+        
+        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {
                 if (failure) {
@@ -796,20 +815,7 @@
     
 }
 
-- (void)upload:(NSString*)httpMethod
-          data:(NSData*)data
-      fileName:(NSString*)fileName
-      mimeType:(NSString*)mimeType
-          path:(NSString*)path
-        params:(NSDictionary*)params
-      progress:(ProgressDataBlock)progress
-       success:(SuccessBlock)success
-       failure:(FailureOperationBlock)failure {
-
-    if (!mimeType) {
-        mimeType = @"application/octet-stream";
-    }
-    
+- (NSString*)mimeTypeForFile:(NSString*)fileName {
     if (!self.knownMimeTypes) {
         self.knownMimeTypes = [NSDictionary dictionaryWithObjectsAndKeys:
                                @"image/jpeg", @".jpg",
@@ -829,13 +835,43 @@
     
     for (NSString* extension in self.knownMimeTypes.allKeys) {
         if ([fileName hasSuffix:extension]) {
-            mimeType = [self.knownMimeTypes stringForKey:extension];
-            break;
+            return [self.knownMimeTypes stringForKey:extension];
         }
     }
-    // NSLog(@"fileName %@ mimeType %@", fileName, mimeType);
     
-    NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:params constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+    return @"application/octet-stream";
+}
+
+- (void)upload:(NSString*)httpMethod
+          data:(NSData*)data
+      fileName:(NSString*)fileName
+      mimeType:(NSString*)mimeType
+          path:(NSString*)path
+        params:(NSDictionary*)params
+          sign:(BOOL)sign
+      progress:(ProgressDataBlock)progress
+       success:(SuccessBlock)success
+       failure:(FailureOperationBlock)failure {
+
+    if (!mimeType) {
+        mimeType = [self mimeTypeForFile:fileName];
+    }
+    
+    NSMutableDictionary *allParams = [[NSMutableDictionary alloc] initWithDictionary:params];
+    if (sign) {
+        [allParams setObject:path forKey:@"path"];
+        [allParams setObject:httpMethod forKey:@"method"];
+        [allParams setObject:self.sharedKey forKey:@"key"];
+        [allParams setObject:[BBUtils nonce] forKey:@"nonce"];
+        [allParams setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+        NSString *signature = [self signature:allParams];
+        
+        [allParams setObject:signature forKey:@"signature"];
+        [allParams removeObjectForKey:@"path"];
+        [allParams removeObjectForKey:@"method"];
+    }
+    
+    NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:allParams constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
         [formData appendPartWithFileData:data name:@"file" fileName:fileName mimeType:mimeType];
     }];
     
@@ -1676,7 +1712,7 @@
                       fetchPolicy:(BBFetchPolicy)fetchPolicy
                           success:(SuccessOperationBlock)success
                           failure:(FailureOperationBlock)failure {
-    [[BackbeamSession instance] requestJSONFromController:path method:method params:params fetchPolicy:fetchPolicy success:success failure:failure];
+    [[BackbeamSession instance] requestJSONFromController:path method:method params:params fetchPolicy:fetchPolicy progress:nil success:success failure:failure];
 }
 
 + (void)requestObjectsFromController:(NSString*)path
@@ -1685,7 +1721,64 @@
                          fetchPolicy:(BBFetchPolicy)fetchPolicy
                              success:(SuccessNearQueryBlock)success
                              failure:(FailureQueryBlock)failure {
-    [[BackbeamSession instance] requestObjectsFromController:path method:method params:params fetchPolicy:fetchPolicy success:success failure:failure];
+    [[BackbeamSession instance] requestObjectsFromController:path method:method params:params fetchPolicy:fetchPolicy progress:nil success:success failure:failure];
+}
+
++ (void)requestJSONFromController:(NSString*)path
+                           method:(NSString*)method
+                           params:(NSDictionary*)params
+                      fetchPolicy:(BBFetchPolicy)fetchPolicy
+                         progress:(ProgressDataBlock)progress
+                          success:(SuccessOperationBlock)success
+                          failure:(FailureOperationBlock)failure {
+    
+    [[BackbeamSession instance] requestJSONFromController:path
+                                                   method:method
+                                                   params:params
+                                              fetchPolicy:fetchPolicy
+                                                 progress:progress
+                                                  success:success
+                                                  failure:failure];
+}
+
++ (void)requestObjectsFromController:(NSString*)path
+                              method:(NSString*)method
+                              params:(NSDictionary*)params
+                         fetchPolicy:(BBFetchPolicy)fetchPolicy
+                            progress:(ProgressDataBlock)progress
+                             success:(SuccessNearQueryBlock)success
+                             failure:(FailureQueryBlock)failure {
+    
+    [[BackbeamSession instance] requestObjectsFromController:path
+                                                      method:method
+                                                      params:params
+                                                 fetchPolicy:fetchPolicy
+                                                    progress:progress
+                                                     success:success
+                                                     failure:failure];
+}
+
++ (void)requestDataFromController:(NSString*)path
+                           method:(NSString*)method
+                           params:(NSDictionary*)params
+                      fetchPolicy:(BBFetchPolicy)fetchPolicy
+                   uploadProgress:(ProgressDataBlock)uploadProgress
+                 downloadProgress:(ProgressDataBlock)downloadProgress
+                          success:(SuccessDataBlock)success
+                          failure:(FailureBlock)failure {
+    
+    [[BackbeamSession instance] requestDataFromController:path
+                                                   method:method
+                                                   params:params
+                                              fetchPolicy:fetchPolicy
+                                           uploadProgress:uploadProgress
+                                         downloadProgress:downloadProgress
+                                                  success:^(NSData *result, BOOL fromCache, NSHTTPURLResponse *response) {
+                                                      success(result);
+                                                  }
+                                                  failure:^(NSData *result, NSError *error) {
+                                                      failure(error);
+                                                  }];
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
@@ -1740,6 +1833,10 @@
 
 + (void)setProtocol:(NSString *)protocol {
     [[BackbeamSession instance] setProtocol:protocol];
+}
+
++ (NSString*)mimeTypeForFile:(NSString*)fileName {
+    return [[BackbeamSession instance] mimeTypeForFile:fileName];
 }
 
 @end

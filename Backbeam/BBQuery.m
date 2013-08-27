@@ -270,7 +270,11 @@
     }];
 }
 
-- (void)next:(NSInteger)limit {
+- (void)removeObjects {
+    
+}
+
+- (void)removeAllObjects {
     
 }
 
