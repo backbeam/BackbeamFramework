@@ -43,8 +43,15 @@
          success:(SuccessQueryBlock)success
          failure:(FailureQueryBlock)failure;
 
-- (void)next:(NSInteger)limit;
-
 - (void)setFetchPolicy:(BBFetchPolicy)fetchPolicy;
+
+- (void)removeObjects:(NSInteger)limit
+               offset:(NSInteger)offset
+              success:(SuccessRemoveBlock)success
+              failure:(FailureRemoveBlock)failure;
+
+- (void)removeAllObjects:(SuccessRemoveBlock)success
+                 failure:(FailureRemoveBlock)failure;
+
 
 @end

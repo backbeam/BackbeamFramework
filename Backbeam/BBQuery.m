@@ -270,12 +270,59 @@
     }];
 }
 
-- (void)removeObjects {
+- (void)_removeObjects:(NSString*)limit offset:(NSInteger)offset success:(SuccessRemoveBlock)success failure:(FailureRemoveBlock)failure {
     
+    NSString* path = [NSString stringWithFormat:@"/data/%@", self._entity];
+    NSMutableDictionary* params = [[NSMutableDictionary alloc] init];
+    if (self._query) {
+        [params setObject:self._query forKey:@"q"];
+        if (self._parameters) {
+            [params setObject:self._parameters forKey:@"params"];
+        }
+    }
+    [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
+    [params setObject:[NSString stringWithFormat:@"%@", limit] forKey:@"limit"];
+    
+    [self._session perform:@"DELETE" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
+        if (![result isKindOfClass:[NSDictionary class]]) {
+            if (failure) {
+                failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+            }
+            return;
+        }
+        NSNumber* removedCount = [result numberForKey:@"removed"];
+        
+        if (success) {
+            success(removedCount.integerValue);
+        }
+    } failure:^(id result, NSError* error) {
+        if (result) {
+            if (![result isKindOfClass:[NSDictionary class]]) {
+                if (failure) {
+                    failure([BBError errorWithStatus:@"InvalidResponse" result:result]);
+                }
+                return;
+            }
+            NSString* status = [result stringForKey:@"status"];
+            if (![status isEqualToString:@"Success"]) {
+                if (failure) {
+                    failure([BBError errorWithStatus:status result:result]);
+                }
+                return;
+            }
+        } else if (failure) {
+            failure(error);
+        }
+    }];
 }
 
-- (void)removeAllObjects {
-    
+- (void)removeObjects:(NSInteger)limit offset:(NSInteger)offset success:(SuccessRemoveBlock)success failure:(FailureRemoveBlock)failure {
+    NSString *_limit = [NSString stringWithFormat:@"%d", limit];
+    [self _removeObjects:_limit offset:offset success:success failure:failure];
+}
+
+- (void)removeAllObjects:(SuccessRemoveBlock)success failure:(FailureRemoveBlock)failure {
+    [self _removeObjects:@"all" offset:0 success:success failure:failure];
 }
 
 @end

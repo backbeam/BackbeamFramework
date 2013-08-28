@@ -48,6 +48,9 @@ typedef void(^SuccessQueryBlock)(NSArray* objects, NSInteger totalCount, BOOL fr
 typedef void(^FailureQueryBlock)(NSError* err);
 typedef void(^SuccessNearQueryBlock)(NSArray *objects, NSInteger totalCount, NSArray *distances, BOOL fromCache);
 
+typedef void(^SuccessRemoveBlock)(NSInteger removed);
+typedef void(^FailureRemoveBlock)(NSError* err);
+
 typedef void(^SuccessObjectBlock)(BBObject* object);
 typedef void(^FailureObjectBlock)(BBObject* object, NSError* err);
 
