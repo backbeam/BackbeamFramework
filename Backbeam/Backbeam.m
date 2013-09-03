@@ -225,7 +225,7 @@
 
 - (void)unsubscribeAllRealTimeEventDelegates {
     [self.roomDelegates removeAllObjects];
-    if (self.socketio.isConnected) {
+    if (self.socketio && self.socketio.isConnected) {
         NSDictionary *params = [NSDictionary dictionary];
         [self.socketio sendEvent:@"unsubsribe-all" withData:params];
     }

@@ -60,6 +60,12 @@
 
 - (NSNumber*)numberForField:(NSString*)key;
 
+- (NSNumber*)booleanForField:(NSString*)key;
+
+- (NSDateComponents*)dayForField:(NSString*)key;
+
+- (id)JSONForField:(NSString*)key;
+
 - (BBObject*)objectForField:(NSString*)key;
 
 - (BBLocation*)locationForField:(NSString*)key;
@@ -79,6 +85,14 @@
 - (BOOL)setObject:(BBObject*)obj forField:(NSString*)key;
 
 - (BOOL)setDate:(NSDate*)obj forField:(NSString*)key;
+
+- (BOOL)setBoolean:(NSNumber*)obj forField:(NSString*)key;
+
+- (BOOL)setDay:(NSDateComponents*)obj forField:(NSString*)key;
+
+- (BOOL)setDayFromDate:(NSDate*)date forField:(NSString*)key;
+
+- (BOOL)setJSON:(id)obj forField:(NSString*)key;
 
 - (BOOL)setRawValue:(id)obj forField:(NSString*)key;
 
