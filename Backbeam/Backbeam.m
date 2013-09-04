@@ -667,7 +667,7 @@
     AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
     [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *op, id responseObject) {
         if (success) {
-            success(op.responseData, NO, nil);
+            success(op.responseData, NO, op.response);
         }
         if (useCache) {
             [self.queryCache write:op.responseData withKey:cacheKey];
