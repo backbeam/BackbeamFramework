@@ -984,6 +984,7 @@
                 failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
             }];
         }
+        return;
     }
     
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
@@ -1006,6 +1007,7 @@
                 failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
             }];
         }
+        return;
     }
     
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:self.deviceToken, @"token", @"apn", @"gateway", nil];
@@ -1029,6 +1031,7 @@
                 failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
             }];
         }
+        return;
     }
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:channels, @"channels", self.deviceToken, @"token", @"apn", @"gateway", nil];
     
@@ -1050,6 +1053,7 @@
                 failure([BBError errorWithStatus:@"UnknownDeviceToken" result:nil]);
             }];
         }
+        return;
     }
     NSDictionary* body = [[NSDictionary alloc] initWithObjectsAndKeys:self.deviceToken, @"token", @"apn", @"gateway", nil];
     
@@ -1564,6 +1568,10 @@
 
 + (void)persistDeviceToken:(NSData*)data {
     [[BackbeamSession instance] persistDeviceToken:data];
+}
+
++ (NSString*)deviceToken {
+    return [BackbeamSession instance].deviceToken;
 }
 
 + (void)subscribeToChannels:(NSArray*)channels success:(SuccessBlock)success failure:(FailureBlock)failure {

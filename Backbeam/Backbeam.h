@@ -214,6 +214,8 @@
 
 + (void)persistDeviceToken:(NSData*)data;
 
++ (NSString*)deviceToken;
+
 + (void)loginWithEmail:(NSString*)email
               password:(NSString*)password
                success:(SuccessObjectBlock)success
