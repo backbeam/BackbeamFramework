@@ -15,12 +15,9 @@
 + (BBError*)errorWithStatus:(NSString*)status result:(id)result {
     NSMutableDictionary* userInfo = [[NSMutableDictionary alloc] init];
     NSString* errorMessage = [result stringForKey:@"errorMessage"];
-    if (errorMessage) {
-        [userInfo setObject:status forKey:NSLocalizedFailureReasonErrorKey];
-        [userInfo setObject:errorMessage forKey:NSLocalizedDescriptionKey];
-    } else {
-        [userInfo setObject:status forKey:NSLocalizedDescriptionKey];
-    }
+    if (!errorMessage) errorMessage = status;
+    [userInfo setObject:status forKey:NSLocalizedFailureReasonErrorKey];
+    [userInfo setObject:errorMessage forKey:NSLocalizedDescriptionKey];
     BBError* err = [[BBError alloc] initWithDomain:kBackbeamErrorDomain code:1000 userInfo:userInfo];
     return err;
 }
@@ -36,14 +33,11 @@
     }
     
     NSString* errorMessage = [result stringForKey:@"errorMessage"];
+    if (!errorMessage) errorMessage = status;
     
     NSMutableDictionary* userInfo = [[NSMutableDictionary alloc] init];
-    if (errorMessage) {
-        [userInfo setObject:status forKey:NSLocalizedFailureReasonErrorKey];
-        [userInfo setObject:errorMessage forKey:NSLocalizedDescriptionKey];
-    } else {
-        [userInfo setObject:status forKey:NSLocalizedDescriptionKey];
-    }
+    [userInfo setObject:status forKey:NSLocalizedFailureReasonErrorKey];
+    [userInfo setObject:errorMessage forKey:NSLocalizedDescriptionKey];
     BBError* err = [[BBError alloc] initWithDomain:kBackbeamErrorDomain code:1000 userInfo:userInfo];
     return err;
 }
@@ -56,24 +50,5 @@
     BBError* err = [[BBError alloc] initWithDomain:kBackbeamErrorDomain code:1000 userInfo:userInfo];
     return err;
 }
-
-/*
-- (NSString *)localizedDescription {
-    NSString* errorMessage = [self.userInfo objectForKey:@"errorMessage"];
-    NSString* status = [self.userInfo objectForKey:@"status"];
-    if (status) {
-        if (errorMessage) {
-            return [NSString stringWithFormat:@"Error type %@, errorMessage: %@", status, errorMessage];
-        }
-        return [NSString stringWithFormat:@"Error type %@", status];
-    }
-    NSError* rootError = [self.userInfo objectForKey:NSStringEncodingErrorKey];
-    if (rootError) {
-        // return [NSString stringWithFormat:@"Root error %@", [rootError localizedDescription]];
-        return [rootError localizedDescription];
-    }
-    return [super localizedDescription];
-}
- */
 
 @end
