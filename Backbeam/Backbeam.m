@@ -703,7 +703,10 @@
     
     [self requestDataFromController:path method:method params:params fetchPolicy:fetchPolicy uploadProgress:progress downloadProgress:nil success:^(NSData *data, BOOL fromCache, NSHTTPURLResponse *response) {
         
-        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        id result = nil;
+        if (data) {
+            result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        }
         
         NSString* auth   = [[response allHeaderFields] stringForKey:@"x-backbeam-auth"];
         NSString* userid = [[response allHeaderFields] stringForKey:@"x-backbeam-user"];
@@ -720,7 +723,10 @@
             success(result, fromCache);
         }
     } failure:^(NSData *data, NSError *error) {
-        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        id result = nil;
+        if (data) {
+            result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        }
         
         if (failure) {
             failure(result, error);
@@ -739,7 +745,10 @@
     
     [self requestDataFromController:path method:method params:params fetchPolicy:fetchPolicy uploadProgress:progress downloadProgress:nil success:^(NSData *data, BOOL fromCache, NSHTTPURLResponse *response) {
         
-        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        id result = nil;
+        if (data) {
+            result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        }
         
         if (![result isKindOfClass:[NSDictionary class]]) {
             if (failure) {
@@ -792,7 +801,10 @@
         }
     } failure:^(NSData *data, NSError *error) {
         
-        id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        id result = nil;
+        if (data) {
+            result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+        }
         
         if (result) {
             if (![result isKindOfClass:[NSDictionary class]]) {

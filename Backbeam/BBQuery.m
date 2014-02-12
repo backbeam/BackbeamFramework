@@ -59,8 +59,8 @@
             [params setObject:self._parameters forKey:@"params"];
         }
     }
-    [params setObject:[NSString stringWithFormat:@"%d", limit]  forKey:@"limit"];
-    [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
+    [params setObject:[NSString stringWithFormat:@"%zd", limit]  forKey:@"limit"];
+    [params setObject:[NSString stringWithFormat:@"%zd", offset] forKey:@"offset"];
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -134,7 +134,7 @@
     }
     [params setObject:[NSString stringWithFormat:@"%f", lat]   forKey:@"lat"];
     [params setObject:[NSString stringWithFormat:@"%f", lon]   forKey:@"lon"];
-    [params setObject:[NSString stringWithFormat:@"%d", limit] forKey:@"limit"];
+    [params setObject:[NSString stringWithFormat:@"%zd", limit] forKey:@"limit"];
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -213,7 +213,7 @@
     [params setObject:[NSString stringWithFormat:@"%f", swlon] forKey:@"swlon"];
     [params setObject:[NSString stringWithFormat:@"%f", nelat] forKey:@"nelat"];
     [params setObject:[NSString stringWithFormat:@"%f", nelon] forKey:@"nelon"];
-    [params setObject:[NSString stringWithFormat:@"%d", limit] forKey:@"limit"];
+    [params setObject:[NSString stringWithFormat:@"%zd", limit] forKey:@"limit"];
     
     [self._session perform:@"GET" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -280,8 +280,8 @@
             [params setObject:self._parameters forKey:@"params"];
         }
     }
-    [params setObject:[NSString stringWithFormat:@"%d", offset] forKey:@"offset"];
-    [params setObject:[NSString stringWithFormat:@"%@", limit] forKey:@"limit"];
+    [params setObject:[NSString stringWithFormat:@"%zd", offset] forKey:@"offset"];
+    [params setObject:[NSString stringWithFormat:@"%zd", limit] forKey:@"limit"];
     
     [self._session perform:@"DELETE" path:path params:params fetchPolicy:self._fetchPolicy success:^(id result, BOOL fromCache) {
         if (![result isKindOfClass:[NSDictionary class]]) {
@@ -317,7 +317,7 @@
 }
 
 - (void)removeObjects:(NSInteger)limit offset:(NSInteger)offset success:(SuccessRemoveBlock)success failure:(FailureRemoveBlock)failure {
-    NSString *_limit = [NSString stringWithFormat:@"%d", limit];
+    NSString *_limit = [NSString stringWithFormat:@"%zd", limit];
     [self _removeObjects:_limit offset:offset success:success failure:failure];
 }
 
