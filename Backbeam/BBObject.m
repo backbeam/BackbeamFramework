@@ -390,7 +390,7 @@
     }
     [self._fields setObject:n forKey:key];
     NSString* command = [NSString stringWithFormat:@"incr-%@", key];
-    [self._commands setObject:[NSString stringWithFormat:@"%d", value] forKey:command];
+    [self._commands setObject:[NSString stringWithFormat:@"%zd", value] forKey:command];
 }
 
 - (void)processResponse:(id)result success:(SuccessOperationObjectBlock)success failure:(FailureObjectBlock)failure {

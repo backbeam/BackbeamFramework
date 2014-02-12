@@ -69,7 +69,7 @@
 
 + (NSString*)hexString:(NSData*)data {
 	NSMutableString *str = [NSMutableString stringWithCapacity:64];
-	int length = [data length];
+	NSUInteger length = [data length];
 	char *bytes = malloc(sizeof(char) * length);
     
 	[data getBytes:bytes length:length];
@@ -96,7 +96,7 @@
     // Initialize the context.
     CC_SHA1_Init(&ctx);
     // Perform the hash.
-    CC_SHA1_Update(&ctx, (void *)[rawData bytes], [rawData length]);
+    CC_SHA1_Update(&ctx, (void *)[rawData bytes], (int)[rawData length]);
     // Finalize the output.
     CC_SHA1_Final(hashBytes, &ctx);
     
@@ -150,7 +150,7 @@
     } else if ([obj isKindOfClass:[NSDateComponents class]]) {
         NSDateComponents *dc = (NSDateComponents*)obj;
         char cString[11];
-        sprintf(cString, "%04d-%02d-%02d", dc.year, dc.month, dc.day);
+        sprintf(cString, "%04zd-%02zd-%02zd", dc.year, dc.month, dc.day);
         return [[NSString alloc] initWithUTF8String:cString];
     }
     return value;

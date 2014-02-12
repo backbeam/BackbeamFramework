@@ -25,7 +25,7 @@
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"count=%d, results=%@",
+    return [NSString stringWithFormat:@"count=%zd, results=%@",
             self.count,
             self.objects];
 }

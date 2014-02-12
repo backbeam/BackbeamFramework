@@ -147,7 +147,7 @@
     self.sharedKey = sharedKey;
     self.secretKey = secretKey;
     self.env       = env;
-    NSString* url = [NSString stringWithFormat:@"%@://api-%@-%@.%@:%d",
+    NSString* url = [NSString stringWithFormat:@"%@://api-%@-%@.%@:%zd",
                      self._protocol, self.env, self.project, self.host, self.port];
     self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
 }
@@ -576,9 +576,9 @@
     
     NSString *urlString = nil;
     if (self._webVersion) {
-        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@-%@.%@:%d", self._protocol, self._webVersion, self.env, self.project, self.host, self.port];
+        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@-%@.%@:%zd", self._protocol, self._webVersion, self.env, self.project, self.host, self.port];
     } else {
-        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@.%@:%d", self._protocol, self.env, self.project, self.host, self.port];
+        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@.%@:%zd", self._protocol, self.env, self.project, self.host, self.port];
     }
     AFHTTPClient *client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:urlString]];
     if (self._httpAuth) {
@@ -1132,7 +1132,7 @@
     [body setObject:channel forKey:@"channel"];
     
     if (notification.iosBadge) {
-        [body setObject:[NSString stringWithFormat:@"%d", notification.iosBadge.integerValue] forKey:@"apn_badge"];
+        [body setObject:[NSString stringWithFormat:@"%zd", notification.iosBadge.integerValue] forKey:@"apn_badge"];
     }
     if (notification.iosAlert) {
         [body setObject:notification.iosAlert  forKey:@"apn_alert"];
