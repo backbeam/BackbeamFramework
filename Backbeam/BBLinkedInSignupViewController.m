@@ -6,6 +6,8 @@
 //  Copyright (c) 2014 Level Apps S.L. All rights reserved.
 //
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 #import "BBLinkedInSignupViewController.h"
 #import "BBUtils.h"
 #import "NSDictionary+SanityChecks.h"
@@ -188,3 +190,5 @@
 }
 
 @end
+
+#endif

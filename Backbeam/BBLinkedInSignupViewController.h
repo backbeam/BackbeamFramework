@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 Level Apps S.L. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 #import "Common.h"
 
 @interface BBLinkedInSignupViewController : UIViewController
@@ -22,3 +22,4 @@
       progress:(ProgressSocialBlock)progress;
 
 @end
+#endif

@@ -23,6 +23,9 @@
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 #import "SocketIO.h"
+@class BBTwitterSignupViewController;
+@class BBLinkedInSignupViewController;
+@class BBGitHubSignupViewController;
 
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
 #import <Accounts/Accounts.h>
@@ -30,7 +33,6 @@
 #endif
 
 @class BBQuery;
-@class BBTwitterSignupViewController;
 
 @protocol BBRealTimeConnectionDelegate <NSObject>
 
@@ -129,11 +131,15 @@
              clientSecret:(NSString*)gitHubClientSecret
               callbackURL:(NSString*)gitHubCallbackURL;
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 + (BBTwitterSignupViewController*)twitterSignupViewController;
 
 + (BBLinkedInSignupViewController*)linkedInSignupViewController;
 
 + (BBGitHubSignupViewController*)gitHubSignupViewController;
+
+#endif
 
 + (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
                    oauthTokenSecret:(NSString*)oauthTokenSecret
@@ -218,15 +224,33 @@
 + (void)subscribedChannels:(SuccessArrayBlock)success
                    failure:(FailureBlock)failure;
 
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 + (NSArray*)subscribedRealTimeEvents;
 
 + (void)unsubscribeAllRealTimeEventDelegates;
 
 + (void)unsubscribeAllRealTimeConnectionDelegates;
 
++ (void)enableRealTime;
+
++ (void)disableRealTime;
+
 + (BOOL)isRealTimeEnabled;
 
 + (BOOL)isRealTimeConnected;
+
++ (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
+
++ (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
+
++ (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate;
+
++ (void)unsubscribeFromRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate;
+
++ (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message;
+
+#endif
 
 + (void)unsubscribeFromAllChannels:(SuccessBlock)success
                            failure:(FailureBlock)failure;
@@ -277,20 +301,6 @@
             params:(NSArray*)params
            success:(SuccessObjectBlock)success
            failure:(FailureBlock)failure;
-
-+ (void)enableRealTime;
-
-+ (void)disableRealTime;
-
-+ (BOOL)subscribeToRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
-
-+ (BOOL)unsubscribeFromRealTimeEvents:(NSString*)event delegate:(id<BBRealTimeEventDelegate>)delegate;
-
-+ (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate;
-
-+ (void)unsubscribeFromRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate;
-
-+ (BOOL)sendRealTimeEvent:(NSString*)event message:(NSDictionary*)message;
 
 + (void)setWebVersion:(NSString*)webVersion;
 
