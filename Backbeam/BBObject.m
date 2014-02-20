@@ -231,6 +231,14 @@
     return [self loginData:key forProvider:@"gp"];
 }
 
+- (NSString*)linkedInData:(NSString*)key {
+    return [self loginData:key forProvider:@"ln"];
+}
+
+- (NSString*)gitHubData:(NSString*)key {
+    return [self loginData:key forProvider:@"gh"];
+}
+
 - (NSString*)identifier {
     return self._identifier;
 }

@@ -11,6 +11,7 @@
 #import <UIKit/UIKit.h>
 #import "BBObject.h"
 #import "BBOAuth1a.h"
+#import "Common.h"
 
 @class BackbeamSession;
 
@@ -25,12 +26,12 @@
 
 - (id)initWith:(BackbeamSession*)session oauthClient:(BBOAuth1a*)oauthClient;
 
-- (void)signup:(SuccessTwitterBlock)success
-       failure:(FailureTwitterBlock)failure;
+- (void)signup:(SuccessSocialSignupWebviewBlock)success
+       failure:(FailureSocialSignupBlock)failure;
 
-- (void)signup:(SuccessTwitterBlock)success
-       failure:(FailureTwitterBlock)failure
-      progress:(ProgressTwitterBlock)progress;
+- (void)signup:(SuccessSocialSignupWebviewBlock)success
+       failure:(FailureSocialSignupBlock)failure
+      progress:(ProgressSocialBlock)progress;
 
 @end
 

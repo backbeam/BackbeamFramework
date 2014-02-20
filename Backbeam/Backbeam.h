@@ -16,6 +16,8 @@
 #import "BBJoinResult.h"
 #import "BBPushNotification.h"
 #import "BBTwitterSignupViewController.h"
+#import "BBLinkedInSignupViewController.h"
+#import "BBGitHubSignupViewController.h"
 #import "BBCollectionConstraint.h"
 #import "BBFileUpload.h"
 
@@ -120,7 +122,18 @@
 + (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey
                consumerSecret:(NSString*)twitterConsumerSecret;
 
++ (void)setLinkedInClientId:(NSString*)linkedInClientId
+               clientSecret:(NSString*)linkedInClientSecret;
+
++ (void)setGitHubClientId:(NSString*)gitHubClientId
+             clientSecret:(NSString*)gitHubClientSecret
+              callbackURL:(NSString*)gitHubCallbackURL;
+
 + (BBTwitterSignupViewController*)twitterSignupViewController;
+
++ (BBLinkedInSignupViewController*)linkedInSignupViewController;
+
++ (BBGitHubSignupViewController*)gitHubSignupViewController;
 
 + (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
                    oauthTokenSecret:(NSString*)oauthTokenSecret
@@ -144,15 +157,38 @@
                               success:(SuccessFacebookBlock)success
                               failure:(FailureFacebookBlock)failure;
 
++ (void)gitHubSignupWithAccessToken:(NSString*)accessToken
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure;
+
+
++ (void)gitHubSignupWithAccessToken:(NSString*)accessToken
+                               join:(NSString*)join
+                             params:(NSArray*)params
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure;
+
++ (void)linkedInSignupWithAccessToken:(NSString*)accessToken
+                              success:(SuccessSocialSignupBlock)success
+                              failure:(FailureSocialSignupBlock)failure;
+
+
++ (void)linkedInSignupWithAccessToken:(NSString*)accessToken
+                                 join:(NSString*)join
+                               params:(NSArray*)params
+                              success:(SuccessSocialSignupBlock)success
+                              failure:(FailureSocialSignupBlock)failure;
+
 + (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
-                                success:(SuccessFacebookBlock)success
-                                failure:(FailureFacebookBlock)failure;
+                                success:(SuccessSocialSignupBlock)success
+                                failure:(FailureSocialSignupBlock)failure;
+
 
 + (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
                                    join:(NSString*)join
                                  params:(NSArray*)params
-                                success:(SuccessFacebookBlock)success
-                                failure:(FailureFacebookBlock)failure;
+                                success:(SuccessSocialSignupBlock)success
+                                failure:(FailureSocialSignupBlock)failure;
 
 + (BBQuery*)queryForEntity:(NSString*)entity;
 

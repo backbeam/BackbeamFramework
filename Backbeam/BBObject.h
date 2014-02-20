@@ -50,6 +50,10 @@
 
 - (NSString*)googlePlusData:(NSString*)key;
 
+- (NSString*)linkedInData:(NSString*)key;
+
+- (NSString*)gitHubData:(NSString*)key;
+
 - (NSArray*)fieldNames;
 
 // methods for reading fields

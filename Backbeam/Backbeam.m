@@ -8,7 +8,6 @@
 
 #import "Backbeam.h"
 #import "AFNetworking.h"
-#import "BBTwitterSignupViewController.h"
 #import "BBUtils.h"
 #import "NSData+Base64.h"
 #import "BBPushNotification.h"
@@ -49,6 +48,13 @@
 
 @property (nonatomic, strong) NSString* twitterConsumerKey;
 @property (nonatomic, strong) NSString* twitterConsumerSecret;
+
+@property (nonatomic, strong) NSString* linkedInClientId;
+@property (nonatomic, strong) NSString* linkedInClientSecret;
+
+@property (nonatomic, strong) NSString* gitHubClientId;
+@property (nonatomic, strong) NSString* gitHubClientSecret;
+@property (nonatomic, strong) NSString* gitHubCallbackURL;
 
 @property (nonatomic, strong) NSString* deviceToken;
 @property (nonatomic, strong) NSString* basePath;
@@ -365,6 +371,21 @@
     return vc;
 }
 
+- (BBLinkedInSignupViewController*)linkedInSignupViewController {
+    BBLinkedInSignupViewController *vc = [[BBLinkedInSignupViewController alloc] init];
+    vc.clientId     = self.linkedInClientId;
+    vc.clientSecret = self.linkedInClientSecret;
+    return vc;
+}
+
+- (BBGitHubSignupViewController*)gitHubSignupViewController {
+    BBGitHubSignupViewController *vc = [[BBGitHubSignupViewController alloc] init];
+    vc.clientId     = self.gitHubClientId;
+    vc.clientSecret = self.gitHubClientSecret;
+    vc.callbackURL  = self.gitHubCallbackURL;
+    return vc;
+}
+
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
 // based on https://dev.twitter.com/docs/ios/using-reverse-auth
 - (void)twitterReverseOAuthWithAccount:(ACAccount*)account success:(SuccessReverseOauthBlock)success failure:(FailureReverseOauthBlock)failure {
@@ -437,6 +458,17 @@
 - (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey consumerSecret:(NSString*)twitterConsumerSecret {
     self.twitterConsumerKey = twitterConsumerKey;
     self.twitterConsumerSecret = twitterConsumerSecret;
+}
+
+- (void)setLinkedInClientId:(NSString *)linkedInClientId clientSecret:(NSString*)linkedInClientSecret {
+    self.linkedInClientId = linkedInClientId;
+    self.linkedInClientSecret = linkedInClientSecret;
+}
+
+- (void)setGitHubClientId:(NSString *)gitHubClientId clientSecret:(NSString*)gitHubClientSecret callbackURL:(NSString*)gitHubCallbackURL {
+    self.gitHubClientId = gitHubClientId;
+    self.gitHubClientSecret = gitHubClientSecret;
+    self.gitHubCallbackURL = gitHubCallbackURL;
 }
 
 - (NSString*)signature:(NSDictionary*)params {
@@ -1463,12 +1495,59 @@
     
 }
 
-- (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
-                                success:(SuccessFacebookBlock)success
-                                failure:(FailureFacebookBlock)failure {
+- (void)gitHubSignupWithAccessToken:(NSString*)accessToken
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
     
-    NSDictionary* postParams = [NSDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
-    [self socialSignup:@"googleplus" params:postParams success:^(BBObject* user, BOOL isNew) {
+    [self gitHubSignupWithAccessToken:accessToken join:nil params:nil success:success failure:failure];
+}
+
+- (void)gitHubSignupWithAccessToken:(NSString*)accessToken
+                               join:(NSString*)join
+                             params:(NSArray*)params
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    
+    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
+    if (join) {
+        [postParams setObject:join forKey:@"joins"];
+        if (params) {
+            [postParams setObject:params forKey:@"params"];
+        }
+    }
+    [self socialSignup:@"github" params:postParams success:^(BBObject* user, BOOL isNew) {
+        if (success) {
+            success(user, isNew);
+        }
+    } failure:^(NSError* err) {
+        if (failure) {
+            failure(err);
+        }
+    }];
+    
+}
+
+- (void)linkedInSignupWithAccessToken:(NSString*)accessToken
+                              success:(SuccessSocialSignupBlock)success
+                              failure:(FailureSocialSignupBlock)failure {
+    
+    [self linkedInSignupWithAccessToken:accessToken join:nil params:nil success:success failure:failure];
+}
+
+- (void)linkedInSignupWithAccessToken:(NSString*)accessToken
+                                 join:(NSString*)join
+                               params:(NSArray*)params
+                              success:(SuccessSocialSignupBlock)success
+                              failure:(FailureSocialSignupBlock)failure {
+    
+    NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
+    if (join) {
+        [postParams setObject:join forKey:@"joins"];
+        if (params) {
+            [postParams setObject:params forKey:@"params"];
+        }
+    }
+    [self socialSignup:@"linkedin" params:postParams success:^(BBObject* user, BOOL isNew) {
         if (success) {
             success(user, isNew);
         }
@@ -1481,10 +1560,17 @@
 }
 
 - (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
+                                success:(SuccessSocialSignupBlock)success
+                                failure:(FailureSocialSignupBlock)failure {
+    
+    [self googlePlusSignupWithAccessToken:accessToken join:nil params:nil success:success failure:failure];
+}
+
+- (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
                                    join:(NSString*)join
                                  params:(NSArray*)params
-                                success:(SuccessFacebookBlock)success
-                                failure:(FailureFacebookBlock)failure {
+                                success:(SuccessSocialSignupBlock)success
+                                failure:(FailureSocialSignupBlock)failure {
     
     NSMutableDictionary* postParams = [NSMutableDictionary dictionaryWithObject:accessToken forKey:@"access_token"];
     if (join) {
@@ -1566,9 +1652,26 @@
     [[BackbeamSession instance] setTwitterConsumerKey:twitterConsumerKey consumerSecret:twitterConsumerSecret];
 }
 
++ (void)setLinkedInClientId:(NSString *)linkedInClientId clientSecret:(NSString*)linkedInClientSecret {
+    [[BackbeamSession instance] setLinkedInClientId:linkedInClientId clientSecret:linkedInClientSecret];
+}
+
++ (void)setGitHubClientId:(NSString *)gitHubClientId clientSecret:(NSString*)gitHubClientSecret callbackURL:(NSString*)gitHubCallbackURL {
+    [[BackbeamSession instance] setGitHubClientId:gitHubClientId clientSecret:gitHubClientSecret callbackURL:gitHubCallbackURL];
+}
+
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
 + (BBTwitterSignupViewController*)twitterSignupViewController {
     return [[BackbeamSession instance] twitterSignupViewController];
+}
+
++ (BBLinkedInSignupViewController*)linkedInSignupViewController {
+    return [[BackbeamSession instance] linkedInSignupViewController];
+}
+
++ (BBGitHubSignupViewController*)gitHubSignupViewController {
+    return [[BackbeamSession instance] gitHubSignupViewController];
 }
 
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
@@ -1671,9 +1774,39 @@
     [[BackbeamSession instance] facebookSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
 }
 
++ (void)gitHubSignupWithAccessToken:(NSString*)accessToken
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    [[BackbeamSession instance] gitHubSignupWithAccessToken:accessToken success:success failure:failure];
+}
+
+
++ (void)gitHubSignupWithAccessToken:(NSString*)accessToken
+                               join:(NSString*)join
+                             params:(NSArray*)params
+                            success:(SuccessSocialSignupBlock)success
+                            failure:(FailureSocialSignupBlock)failure {
+    [[BackbeamSession instance] gitHubSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
+}
+
++ (void)linkedInSignupWithAccessToken:(NSString*)accessToken
+                              success:(SuccessSocialSignupBlock)success
+                              failure:(FailureSocialSignupBlock)failure {
+    [[BackbeamSession instance] linkedInSignupWithAccessToken:accessToken success:success failure:failure];
+}
+
+
++ (void)linkedInSignupWithAccessToken:(NSString*)accessToken
+                                 join:(NSString*)join
+                               params:(NSArray*)params
+                              success:(SuccessSocialSignupBlock)success
+                              failure:(FailureSocialSignupBlock)failure {
+    [[BackbeamSession instance] linkedInSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
+}
+
 + (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
-                                success:(SuccessFacebookBlock)success
-                                failure:(FailureFacebookBlock)failure {
+                                success:(SuccessSocialSignupBlock)success
+                                failure:(FailureSocialSignupBlock)failure {
     [[BackbeamSession instance] googlePlusSignupWithAccessToken:accessToken success:success failure:failure];
 }
 
@@ -1681,8 +1814,8 @@
 + (void)googlePlusSignupWithAccessToken:(NSString*)accessToken
                                    join:(NSString*)join
                                  params:(NSArray*)params
-                                success:(SuccessFacebookBlock)success
-                                failure:(FailureFacebookBlock)failure {
+                                success:(SuccessSocialSignupBlock)success
+                                failure:(FailureSocialSignupBlock)failure {
     [[BackbeamSession instance] googlePlusSignupWithAccessToken:accessToken join:join params:params success:success failure:failure];
 }
 

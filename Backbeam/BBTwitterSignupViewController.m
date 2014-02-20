@@ -17,13 +17,13 @@
 #define TWITTER_REQUEST_TOKEN_URL @"https://api.twitter.com/oauth/request_token"
 #define TWITTER_AUTHORIZE_URL     @"https://api.twitter.com/oauth/authorize"
 #define TWITTER_ACCESS_TOKEN_URL  @"https://api.twitter.com/oauth/access_token"
-#define CALLBACK_URL              @"bb://localhost/sign-in-with-twitter/"
+#define TWITTER_CALLBACK_URL      @"bb://localhost/sign-in-with-twitter/"
 
 @interface BBTwitterSignupViewController () <UIWebViewDelegate>
 
-@property (nonatomic, copy) SuccessTwitterBlock success;
-@property (nonatomic, copy) FailureTwitterBlock failure;
-@property (nonatomic, copy) ProgressTwitterBlock progress;
+@property (nonatomic, copy) SuccessSocialSignupWebviewBlock success;
+@property (nonatomic, copy) FailureSocialSignupBlock failure;
+@property (nonatomic, copy) ProgressSocialBlock progress;
 
 @property (nonatomic, strong) BackbeamSession* _session;
 
@@ -70,11 +70,11 @@
     [self.webview.scrollView setDelaysContentTouches:NO];
 }
 
-- (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure {
+- (void)signup:(SuccessSocialSignupWebviewBlock)success failure:(FailureSocialSignupBlock)failure {
     [self signup:success failure:failure progress:nil];
 }
 
-- (void)signup:(SuccessTwitterBlock)success failure:(FailureTwitterBlock)failure progress:(ProgressTwitterBlock)progress {
+- (void)signup:(SuccessSocialSignupWebviewBlock)success failure:(FailureSocialSignupBlock)failure progress:(ProgressSocialBlock)progress {
     self.success = success;
     self.failure = failure;
     self.progress = progress;
@@ -91,14 +91,14 @@
     }
     
     if (self.progress) {
-        self.progress(BBTwitterProgressLoadingAuthorizationPage);
+        self.progress(BBSocialSignupProgressLoadingAuthorizationPage);
     }
     
     NSURLRequest* req = [self.oauthClient signedRequestWithMethod:@"POST"
                                                           baseURL:TWITTER_REQUEST_TOKEN_URL
                                                            params:nil
                                                              body:nil
-                                                         callback:CALLBACK_URL];
+                                                         callback:TWITTER_CALLBACK_URL];
     
     AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
     [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation* op, id response) {
@@ -140,9 +140,9 @@
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
     NSString *str = [request.URL description];
     NSLog(@"string %@", str);
-    if ([str hasPrefix:CALLBACK_URL]) {
+    if ([str hasPrefix:TWITTER_CALLBACK_URL]) {
         if (self.progress) {
-            self.progress(BBTwitterProgressRedirecting);
+            self.progress(BBSocialSignupProgressRedirecting);
         }
         NSRange r = [str rangeOfString:@"?"];
         if (r.location != NSNotFound) {
@@ -206,7 +206,7 @@
         return NO;
     } else if ([str hasPrefix:TWITTER_AUTHORIZE_URL] && navigationType == UIWebViewNavigationTypeFormSubmitted) {
         if (self.progress) {
-            self.progress(BBTwitterProgressAuthorizating);
+            self.progress(BBSocialSignupProgressAuthorizating);
         }
     }
     return YES;
@@ -218,7 +218,7 @@
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
     if (self.progress && self.waitingToFinish) {
         self.waitingToFinish = NO;
-        self.progress(BBTwitterProgressLoadedAuthorizationPage);
+        self.progress(BBSocialSignupProgressLoadedAuthorizationPage);
     }
 }
 

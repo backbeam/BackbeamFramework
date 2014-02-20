@@ -18,11 +18,11 @@ typedef enum {
 } BBFetchPolicy;
 
 typedef enum {
-    BBTwitterProgressLoadingAuthorizationPage,
-    BBTwitterProgressLoadedAuthorizationPage,
-    BBTwitterProgressAuthorizating,
-    BBTwitterProgressRedirecting
-} BBTwitterProgress;
+    BBSocialSignupProgressLoadingAuthorizationPage,
+    BBSocialSignupProgressLoadedAuthorizationPage,
+    BBSocialSignupProgressAuthorizating,
+    BBSocialSignupProgressRedirecting
+} BBSocialSignupProgress;
 
 // internal use
 typedef void(^SuccessOperationBlock)(id result, BOOL fromCache);
@@ -69,7 +69,6 @@ typedef void(^FailureSocialSignupBlock)(NSError* err);
 typedef void(^SuccessFacebookBlock)(BBObject* user, BOOL isNew);
 typedef void(^FailureFacebookBlock)(NSError* err);
 
-typedef void(^SuccessTwitterBlock)(BBObject* user, NSDictionary* extraInfo, BOOL isNew);
-typedef void(^FailureTwitterBlock)(NSError* err);
-typedef void(^ProgressTwitterBlock)(BBTwitterProgress progress);
+typedef void(^SuccessSocialSignupWebviewBlock)(BBObject* user, NSDictionary* extraInfo, BOOL isNew);
+typedef void(^ProgressSocialBlock)(BBSocialSignupProgress progress);
 
