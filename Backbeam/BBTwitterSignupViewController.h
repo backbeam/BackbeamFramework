@@ -14,9 +14,9 @@
 
 @class BackbeamSession;
 
-@interface BBTwitterLoginViewController : UIViewController <UIWebViewDelegate>
+@interface BBTwitterSignupViewController : UIViewController
 
-@property (strong, nonatomic) IBOutlet UIWebView *webview;
+@property (strong, nonatomic) UIWebView *webview;
 
 @property (strong, nonatomic) NSString *join;
 @property (strong, nonatomic) NSArray *params;

@@ -8,7 +8,7 @@
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 
-#import "BBTwitterLoginViewController.h"
+#import "BBTwitterSignupViewController.h"
 #import "AFNetworking.h"
 #import "BBUtils.h"
 #import "NSData+Base64.h"
@@ -19,7 +19,7 @@
 #define TWITTER_ACCESS_TOKEN_URL  @"https://api.twitter.com/oauth/access_token"
 #define CALLBACK_URL              @"bb://localhost/sign-in-with-twitter/"
 
-@interface BBTwitterLoginViewController ()
+@interface BBTwitterSignupViewController () <UIWebViewDelegate>
 
 @property (nonatomic, copy) SuccessTwitterBlock success;
 @property (nonatomic, copy) FailureTwitterBlock failure;
@@ -31,15 +31,13 @@
 
 @end
 
-@implementation BBTwitterLoginViewController
-
-@synthesize webview;
+@implementation BBTwitterSignupViewController
 
 - (id)init
 {
     self = [super init];
     if (self) {
-        [NSException raise:@"Use [Backbeam twitterLoginViewController] to create a BBTwitterLoginViewController" format:nil];
+        [NSException raise:@"Use [Backbeam twitterSignupViewController] to create a BBTwitterSignupViewController" format:nil];
     }
     return self;
 }
@@ -52,6 +50,17 @@
         self.oauthClient = oauthClient;
     }
     return self;
+}
+
+- (void)loadView
+{
+    [super loadView];
+    
+    self.webview = [[UIWebView alloc] init];
+    self.webview.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.webview.delegate = self;
+    
+    self.view = self.webview;
 }
 
 - (void)viewDidLoad
@@ -107,7 +116,7 @@
         
         self.waitingToFinish = YES;
         NSString* url = [NSString stringWithFormat:@"https://api.twitter.com/oauth/authenticate?oauth_token=%@", self.oauthClient.oauthToken];
-        [webview loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:url]]];
+        [self.webview loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:url]]];
     } failure:^(AFHTTPRequestOperation* op, NSError* err) {
         if (self.failure) {
             self.failure(err);
@@ -129,7 +138,8 @@
 
 // See https://dev.twitter.com/docs/auth/implementing-sign-twitter
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
-    NSString* str = [request.URL description];
+    NSString *str = [request.URL description];
+    NSLog(@"string %@", str);
     if ([str hasPrefix:CALLBACK_URL]) {
         if (self.progress) {
             self.progress(BBTwitterProgressRedirecting);

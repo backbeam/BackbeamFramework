@@ -8,7 +8,7 @@
 
 #import "Backbeam.h"
 #import "AFNetworking.h"
-#import "BBTwitterLoginViewController.h"
+#import "BBTwitterSignupViewController.h"
 #import "BBUtils.h"
 #import "NSData+Base64.h"
 #import "BBPushNotification.h"
@@ -357,11 +357,11 @@
     [self.realTimeDelegates removeObject:delegate];
 }
 
-- (BBTwitterLoginViewController*)twitterLoginViewController {
+- (BBTwitterSignupViewController*)twitterSignupViewController {
     BBOAuth1a *oauthClient = [[BBOAuth1a alloc] init];
     oauthClient.consumerKey = self.twitterConsumerKey;
     oauthClient.consumerSecret = self.twitterConsumerSecret;
-    BBTwitterLoginViewController* vc = [[BBTwitterLoginViewController alloc] initWith:self oauthClient:oauthClient];
+    BBTwitterSignupViewController* vc = [[BBTwitterSignupViewController alloc] initWith:self oauthClient:oauthClient];
     return vc;
 }
 
@@ -1567,8 +1567,8 @@
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-+ (BBTwitterLoginViewController*)twitterLoginViewController {
-    return [[BackbeamSession instance] twitterLoginViewController];
++ (BBTwitterSignupViewController*)twitterSignupViewController {
+    return [[BackbeamSession instance] twitterSignupViewController];
 }
 
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000

@@ -25,6 +25,15 @@
 
 @implementation BBObject
 
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        [NSException raise:@"Use [Backbeam emptyObjectForEntity:] to create an empty BBObject" format:nil];
+    }
+    return self;
+}
+
 - (id)initWithCoder:(NSCoder *)decoder
 {
     self = [super init];

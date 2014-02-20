@@ -15,7 +15,7 @@
 #import "BBLocation.h"
 #import "BBJoinResult.h"
 #import "BBPushNotification.h"
-#import "BBTwitterLoginViewController.h"
+#import "BBTwitterSignupViewController.h"
 #import "BBCollectionConstraint.h"
 #import "BBFileUpload.h"
 
@@ -28,7 +28,7 @@
 #endif
 
 @class BBQuery;
-@class BBTwitterLoginViewController;
+@class BBTwitterSignupViewController;
 
 @protocol BBRealTimeConnectionDelegate <NSObject>
 
@@ -120,7 +120,7 @@
 + (void)setTwitterConsumerKey:(NSString *)twitterConsumerKey
                consumerSecret:(NSString*)twitterConsumerSecret;
 
-+ (BBTwitterLoginViewController*)twitterLoginViewController;
++ (BBTwitterSignupViewController*)twitterSignupViewController;
 
 + (void)twitterSignupWithOAuthToken:(NSString*)oauthToken
                    oauthTokenSecret:(NSString*)oauthTokenSecret
