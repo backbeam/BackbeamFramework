@@ -643,9 +643,14 @@
         }
     }
     
+    AFHTTPRequestSerializer *serializer = [AFHTTPRequestSerializer serializer];
+    if (self._httpAuth) {
+        [serializer setAuthorizationHeaderFieldWithUsername:self.project password:self._httpAuth];
+    }
+    
     NSMutableURLRequest *request = nil;
     if (fileParams.count > 0) {
-        request = [[[AFHTTPRequestSerializer alloc] init] multipartFormRequestWithMethod:method URLString:urlString parameters:otherParams constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+        request = [serializer multipartFormRequestWithMethod:method URLString:urlString parameters:otherParams constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
             for (NSString *key in fileParams) {
                 BBFileUpload *fileUpload = (BBFileUpload*)[fileParams objectForKey:key];
                 [formData appendPartWithFileData:fileUpload.data
@@ -655,7 +660,7 @@
             }
         } error:nil]; // TODO: error
     } else {
-        request = [[[AFHTTPRequestSerializer alloc] init] requestWithMethod:method URLString:urlString parameters:params error:nil]; // TODO: error
+        request = [serializer requestWithMethod:method URLString:urlString parameters:params error:nil]; // TODO: error
     }
     
     if (self.authCode) {
@@ -675,8 +680,8 @@
     
     NSString* cacheKey = nil;
     BOOL useCache = fetchPolicy == BBFetchPolicyLocalOnly
-                 || fetchPolicy == BBFetchPolicyLocalAndRemote
-                 || fetchPolicy == BBFetchPolicyLocalOrRemote;
+                || fetchPolicy == BBFetchPolicyLocalAndRemote
+                || fetchPolicy == BBFetchPolicyLocalOrRemote;
     if (useCache) {
         NSString *cacheKeyString = [self cacheString:prms];
         cacheKey = [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
@@ -716,11 +721,6 @@
             failure(operation.responseData, error);
         }
     }];
-    
-    if (self._httpAuth) {
-        NSURLCredential *credential = [NSURLCredential credentialWithUser:self.project password:self._httpAuth persistence:NSURLCredentialPersistenceNone];
-        [operation setCredential:credential];
-    }
     
     if (downloadProgress) {
         [operation setDownloadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
