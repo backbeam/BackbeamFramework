@@ -116,14 +116,16 @@
             [params setObject:LINKEDIN_CALLBACK_URL forKey:@"redirect_uri"];
             
             NSString *urlString = [NSString stringWithFormat:@"%@?%@", LINKEDIN_ACCESS_TOKEN_URL, [BBUtils queryString:params]];
-            NSURLRequest *req = [[NSURLRequest alloc] initWithURL:[NSURL URLWithString:urlString]];
             
             if (self.progress) {
                 self.progress(BBSocialSignupProgressAuthorizating);
             }
             
-            AFJSONRequestOperation *operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest *request, NSHTTPURLResponse *response, id JSON) {
-                
+            NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:urlString]];
+            AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+            operation.responseSerializer = [AFJSONResponseSerializer serializer];
+            
+            [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id JSON) {
                 if (![JSON isKindOfClass:[NSDictionary class]]) {
                     if (self.failure) {
                         self.failure([BBError errorWithStatus:@"LinkedInInvalidResponseFormat" result:nil]);
@@ -152,14 +154,12 @@
                         self.failure(err);
                     }
                 }];
-                
-            } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error, id JSON) {
-                
+            } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
                 if (self.failure) {
                     self.failure(error);
                 }
-                
             }];
+            
             [operation start];
         }
         

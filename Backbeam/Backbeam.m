@@ -32,7 +32,8 @@
 
 @interface BackbeamSession ()
 
-@property (nonatomic, strong) AFHTTPClient* client;
+@property (nonatomic, strong) NSString *_apiBaseURL;
+@property (nonatomic, strong) NSString *_webBaseURL;
 
 @property (nonatomic, strong) NSString* host;
 @property (nonatomic, assign) NSInteger port;
@@ -129,10 +130,13 @@
 - (void)setHost:(NSString*)host port:(NSInteger)port {
     self.host = host;
     self.port = port;
+    self._apiBaseURL = nil;
+    self._webBaseURL = nil;
 }
 
 - (void)setWebVersion:(NSString*)webVersion {
     self._webVersion = webVersion;
+    self._webBaseURL = nil;
 }
 
 - (void)setHttpAuth:(NSString*)httpAuth {
@@ -146,16 +150,35 @@
     } else {
         self.port = 80;
     }
+    self._apiBaseURL = nil;
+    self._webBaseURL = nil;
 }
 
 - (void)setProject:(NSString*)project sharedKey:(NSString*)sharedKey secretKey:(NSString*)secretKey environment:(NSString*)env {
-    self.project   = project;
-    self.sharedKey = sharedKey;
-    self.secretKey = secretKey;
-    self.env       = env;
-    NSString* url = [NSString stringWithFormat:@"%@://api-%@-%@.%@:%zd",
-                     self._protocol, self.env, self.project, self.host, self.port];
-    self.client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:url]];
+    self.project     = project;
+    self.sharedKey   = sharedKey;
+    self.secretKey   = secretKey;
+    self.env         = env;
+    self._webBaseURL = nil;
+}
+
+- (NSString*)apiBaseURL {
+    if (!self._apiBaseURL) {
+        self._apiBaseURL = [NSString stringWithFormat:@"%@://api-%@-%@.%@:%zd",
+                            self._protocol, self.env, self.project, self.host, self.port];
+    }
+    return self._apiBaseURL;
+}
+
+- (NSString*)webBaseURL {
+    if (!self._webBaseURL) {
+        if (self._webVersion) {
+            self._webBaseURL = [NSString stringWithFormat:@"%@://web-%@-%@-%@.%@:%zd", self._protocol, self._webVersion, self.env, self.project, self.host, self.port];
+        } else {
+            self._webBaseURL = [NSString stringWithFormat:@"%@://web-%@-%@.%@:%zd", self._protocol, self.env, self.project, self.host, self.port];
+        }
+    }
+    return self._webBaseURL;
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
@@ -565,22 +588,22 @@
     [params removeObjectForKey:@"method"];
     [params removeObjectForKey:@"path"];
     
-    NSMutableURLRequest* req = [self.client requestWithMethod:httpMethod path:path parameters:params];
-    __block AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
+    NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
+    NSMutableURLRequest *request = [[[AFHTTPRequestSerializer alloc] init] requestWithMethod:httpMethod URLString:urlString parameters:params error:nil]; // TODO: error
+    [request setHTTPMethod:httpMethod];
+    AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+    operation.responseSerializer = [AFJSONResponseSerializer serializer];
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
         if (success) {
-            success(result, NO);
+            success(responseObject, NO);
         }
         
         if (useCache) {
             [self.queryCache write:operation.responseData withKey:cacheKey];
         }
-        
-    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
-        
-        [self checkInvalidAuthCode:result];
-        
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
         if (failure) {
-            failure(result, err);
+            failure(operation.responseObject, error);
         }
     }];
     
@@ -606,16 +629,7 @@
                           success:(SuccessControllerBlock)success
                           failure:(FailureControllerBlock)failure {
     
-    NSString *urlString = nil;
-    if (self._webVersion) {
-        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@-%@.%@:%zd", self._protocol, self._webVersion, self.env, self.project, self.host, self.port];
-    } else {
-        urlString = [[NSString alloc] initWithFormat:@"%@://web-%@-%@.%@:%zd", self._protocol, self.env, self.project, self.host, self.port];
-    }
-    AFHTTPClient *client = [[AFHTTPClient alloc] initWithBaseURL:[NSURL URLWithString:urlString]];
-    if (self._httpAuth) {
-        [client setAuthorizationHeaderWithUsername:self.project password:self._httpAuth];
-    }
+    NSString *urlString = [[self webBaseURL] stringByAppendingString:path];
     
     NSMutableDictionary *fileParams = [[NSMutableDictionary alloc] initWithCapacity:params.count];
     NSMutableDictionary *otherParams = [[NSMutableDictionary alloc] initWithCapacity:params.count];
@@ -629,32 +643,25 @@
         }
     }
     
-    NSMutableURLRequest* req = nil;
+    NSMutableURLRequest *request = nil;
     if (fileParams.count > 0) {
-        req = [client multipartFormRequestWithMethod:method
-                                                path:path
-                                          parameters:otherParams
-                           constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
-                               
-                               for (NSString *key in fileParams) {
-                                   
-                                   BBFileUpload *fileUpload = (BBFileUpload*)[fileParams objectForKey:key];
-                                   
-                                   [formData appendPartWithFileData:fileUpload.data
-                                                               name:key
-                                                           fileName:fileUpload.fileName
-                                                           mimeType:fileUpload.mimeType];
-                               }
-        }];
+        request = [[[AFHTTPRequestSerializer alloc] init] multipartFormRequestWithMethod:method URLString:urlString parameters:otherParams constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+            for (NSString *key in fileParams) {
+                BBFileUpload *fileUpload = (BBFileUpload*)[fileParams objectForKey:key];
+                [formData appendPartWithFileData:fileUpload.data
+                                            name:key
+                                        fileName:fileUpload.fileName
+                                        mimeType:fileUpload.mimeType];
+            }
+        } error:nil]; // TODO: error
     } else {
-        req = [client requestWithMethod:method path:path parameters:otherParams];
+        request = [[[AFHTTPRequestSerializer alloc] init] requestWithMethod:method URLString:urlString parameters:params error:nil]; // TODO: error
     }
-    
     
     if (self.authCode) {
-        [req setValue:self.authCode forHTTPHeaderField:@"x-backbeam-auth"];
+        [request setValue:self.authCode forHTTPHeaderField:@"x-backbeam-auth"];
     }
-    [req setValue:@"ios" forHTTPHeaderField:@"x-backbeam-sdk"];
+    [request setValue:@"ios" forHTTPHeaderField:@"x-backbeam-sdk"];
     
     NSMutableDictionary *prms = [NSMutableDictionary dictionaryWithDictionary:params];
     [prms setObject:method forKey:@"method"];
@@ -696,19 +703,24 @@
         }
     }
     
-    AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
-    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *op, id responseObject) {
+    AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
         if (success) {
-            success(op.responseData, NO, op.response);
+            success(operation.responseData, NO, operation.response);
         }
         if (useCache) {
-            [self.queryCache write:op.responseData withKey:cacheKey];
+            [self.queryCache write:operation.responseData withKey:cacheKey];
         }
-    } failure:^(AFHTTPRequestOperation *op, NSError *err) {
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
         if (failure) {
-            failure(op.responseData, err);
+            failure(operation.responseData, error);
         }
     }];
+    
+    if (self._httpAuth) {
+        NSURLCredential *credential = [NSURLCredential credentialWithUser:self.project password:self._httpAuth persistence:NSURLCredentialPersistenceNone];
+        [operation setCredential:credential];
+    }
     
     if (downloadProgress) {
         [operation setDownloadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
@@ -915,23 +927,27 @@
         [allParams removeObjectForKey:@"method"];
     }
     
-    NSMutableURLRequest* req = [self.client multipartFormRequestWithMethod:httpMethod path:path parameters:allParams constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+    NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
+    NSMutableURLRequest* request = [[[AFHTTPRequestSerializer alloc] init] multipartFormRequestWithMethod:httpMethod URLString:urlString parameters:allParams constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
         [formData appendPartWithFileData:data name:@"file" fileName:fileName mimeType:mimeType];
+    } error:nil]; // TODO: error
+    
+    AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+    operation.responseSerializer = [AFJSONResponseSerializer serializer];
+    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
+        [self processBasicResponse:responseObject success:success failure:^(NSError* error) {
+            if (failure) {
+                failure(responseObject, error);
+            }
+        }];
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+        [self processBasicFailure:operation.responseObject error:error failure:^(NSError* error) {
+            if (failure) {
+                failure(operation.responseObject, error);
+            }
+        }];
     }];
     
-    AFJSONRequestOperation* operation = [AFJSONRequestOperation JSONRequestOperationWithRequest:req success:^(NSURLRequest* req, NSHTTPURLResponse* resp, id result) {
-        [self processBasicResponse:result success:success failure:^(NSError* error) {
-            if (failure) {
-                failure(result, error);
-            }
-        }];
-    } failure:^(NSURLRequest* req, NSHTTPURLResponse* resp, NSError* err, id result) {
-        [self processBasicFailure:result error:err failure:^(NSError* error) {
-            if (failure) {
-                failure(result, error);
-            }
-        }];
-    }];
     if (progress) {
         [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
             progress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
@@ -964,12 +980,13 @@
     [cacheParams setObject:@"GET" forKey:@"method"];
     [cacheParams setObject:path   forKey:@"path"];
     NSString *cacheKey = [self cacheString:cacheParams];
-    NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:params];
-    
+    NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:urlString]];
+
     UIImage* img = [self.imageCache objectForKey:cacheKey];
     if (img) return img;
     
-    [self download:req progress:progress success:^(NSData* data) {
+    [self download:request progress:progress success:^(NSData* data) {
         UIImage* img = [UIImage imageWithData:data scale:scale];
         // TODO: http://ioscodesnippet.tumblr.com/post/10924101444/force-decompressing-uiimage-in-background-to-achieve
         if (img) {
@@ -986,8 +1003,9 @@
 #endif
 
 - (void)downloadPath:(NSString*)path progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {
-    NSMutableURLRequest* req = [self.client requestWithMethod:@"GET" path:path parameters:nil];
-    [self download:req progress:progress success:success failure:failure];
+    NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:urlString]];
+    [self download:request progress:progress success:success failure:failure];
 }
 
 - (void)download:(NSMutableURLRequest*)req progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {

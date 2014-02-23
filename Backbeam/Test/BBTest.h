@@ -19,7 +19,7 @@
 typedef void(^DoneBlock)();
 typedef void(^TestBlock)(DoneBlock done);
 
-@interface BBTest : BBObject
+@interface BBTest : NSObject
 
 - (void)before:(TestBlock)done;
 - (void)after:(TestBlock)done;
