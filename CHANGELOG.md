@@ -1,7 +1,11 @@
 Changelog
 =========
 
-**Version 0.12.0 - Feb 2, 2014**
+**Version 0.12.1 - Mar 3, 2014**
+
+`AFNetworking` updated to 2.1.3. So iOS5 and OSX 10.7 are no longer supported.
+
+**Version 0.12.0 - Feb 20, 2014**
 
 Renamed twitter-related signup methods. The class formerly called `BBTwitterLoginViewController` is now `BBTwitterSignupViewController`. The method to create such controller is now named `[Backbeam twitterSignupViewController]` and the view controller no longer uses a .xib file under the hood.
 
