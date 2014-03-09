@@ -16,6 +16,6 @@ Pod::Spec.new do |s|
   s.source_files = 'Backbeam'
   s.requires_arc = true
 
-  s.dependency 'AFNetworking', '~> 2.1.0'
+  s.dependency 'AFNetworking', '~> 2.2.0'
   s.ios.dependency 'socket.IO', '~> 0.4.0'
 end
