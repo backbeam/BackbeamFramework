@@ -17,5 +17,5 @@ Pod::Spec.new do |s|
   s.requires_arc = true
 
   s.dependency 'AFNetworking', '~> 2.2.0'
-  s.ios.dependency 'socket.IO', '~> 0.4.0'
+  s.ios.dependency 'socket.IO', '~> 0.5.0'
 end
