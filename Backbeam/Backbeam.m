@@ -556,8 +556,11 @@
     BOOL useCache    = fetchPolicy == BBFetchPolicyLocalOnly
                     || fetchPolicy == BBFetchPolicyLocalAndRemote
                     || fetchPolicy == BBFetchPolicyLocalOrRemote;
-    if (useCache) {
+    
+    if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
         cacheKey = [self cacheString:params];
+    }
+    if (useCache) {
         NSData* data = [self.queryCache read:cacheKey];
         BOOL read = NO;
         if (data) {
@@ -598,7 +601,7 @@
             success(responseObject, NO);
         }
         
-        if (useCache) {
+        if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
             [self.queryCache write:operation.responseData withKey:cacheKey];
         }
     } failure:^(AFHTTPRequestOperation *operation, NSError *error) {

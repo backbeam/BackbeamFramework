@@ -14,7 +14,8 @@ typedef enum {
     BBFetchPolicyRemoteOnly,
     BBFetchPolicyLocalOnly,
     BBFetchPolicyLocalAndRemote,
-    BBFetchPolicyLocalOrRemote
+    BBFetchPolicyLocalOrRemote,
+    BBFetchPolicyRemoteAndStore
 } BBFetchPolicy;
 
 typedef enum {
