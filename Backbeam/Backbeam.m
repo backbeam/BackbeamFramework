@@ -986,7 +986,11 @@
     [cacheParams setObject:path   forKey:@"path"];
     NSString *cacheKey = [self cacheString:cacheParams];
     NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:urlString]];
+    
+    NSMutableURLRequest *request = [[[AFHTTPRequestSerializer alloc] init] requestWithMethod:@"GET"
+                                                                                   URLString:urlString
+                                                                                  parameters:params
+                                                                                       error:nil];
 
     UIImage* img = [self.imageCache objectForKey:cacheKey];
     if (img) return img;

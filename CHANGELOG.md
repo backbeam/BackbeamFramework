@@ -1,6 +1,12 @@
 Changelog
 =========
 
+**Version 1.0.0 - May 11, 2014**
+
+Added `BBFetchPolicyRemoteAndStore` to the list of available fetch policies. This new policy requests the data to the server and then updates the local cache.
+
+Fixed a problem with `[BBObject imageWithSize:...]`
+
 **Version 0.12.1 - Mar 3, 2014**
 
 `AFNetworking` updated to 2.1.3. So iOS5 and OSX 10.7 are no longer supported.
