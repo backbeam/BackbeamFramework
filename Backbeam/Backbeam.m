@@ -728,13 +728,13 @@
     }];
     
     if (downloadProgress) {
-        [operation setDownloadProgressBlock:^(NSUInteger bytesRead, NSInteger totalBytesRead, NSInteger totalBytesExpectedToRead) {
+        [operation setDownloadProgressBlock:^(NSUInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
             downloadProgress(bytesRead, totalBytesRead, totalBytesExpectedToRead);
         }];
     }
     
     if (uploadProgress) {
-        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, NSInteger totalBytesWritten, NSInteger totalBytesExpectedToWrite) {
+        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
             uploadProgress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
         }];
     }
@@ -954,7 +954,7 @@
     }];
     
     if (progress) {
-        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, NSInteger totalBytesWritten, NSInteger totalBytesExpectedToWrite) {
+        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
             progress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
         }];
     }
@@ -1020,7 +1020,7 @@
 - (void)download:(NSMutableURLRequest*)req progress:(ProgressDataBlock)progress success:(SuccessDataBlock)success failure:(FailureBlock)failure {
     AFHTTPRequestOperation* operation = [[AFHTTPRequestOperation alloc] initWithRequest:req];
     if (progress) {
-        [operation setDownloadProgressBlock:^(NSUInteger bytesRead, NSInteger totalBytesRead, NSInteger totalBytesExpectedToRead) {
+        [operation setDownloadProgressBlock:^(NSUInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
             progress(bytesRead, totalBytesRead, totalBytesExpectedToRead);
         }];
     }
