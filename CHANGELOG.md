@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**Version 1.0.1 - Jun 10, 2014**
+
+Improved internal cache.
+
 **Version 1.0.0 - May 11, 2014**
 
 Added `BBFetchPolicyRemoteAndStore` to the list of available fetch policies. This new policy requests the data to the server and then updates the local cache.

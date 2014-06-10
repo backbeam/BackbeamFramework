@@ -19,6 +19,7 @@
 @property (nonatomic, strong) NSString* metaFile;
 @property (nonatomic, strong) NSMutableDictionary* objects;
 @property (nonatomic, assign) unsigned long long int maxSize;
+@property (nonatomic, strong) NSCache* memoryCache;
 
 @end
 
@@ -41,13 +42,18 @@
         
         metaQueue = dispatch_queue_create("io.backbeam.cache.meta", DISPATCH_QUEUE_SERIAL);
 		dispatch_set_target_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), metaQueue);
+        
+        self.memoryCache = [[NSCache alloc] init];
     }
     return self;
 }
 
 - (NSData*)read:(NSString*)key {
     key = [@"_" stringByAppendingString:key];
-    __block NSData* data = nil;
+    __block NSData* data = [self.memoryCache objectForKey:key];
+    if (data) {
+        return data;
+    }
     dispatch_sync(metaQueue, ^{
         NSMutableDictionary* info = [self.objects objectForKey:key];
         if (info) {
@@ -55,6 +61,8 @@
             data = [NSData dataWithContentsOfFile:[self pathForKey:key]];
             if (!data) {
                 [self.objects removeObjectForKey:key]; // if the file has been removed for any reason
+            } else {
+                [self.memoryCache setObject:data forKey:key];
             }
             [self saveMetadata];
         }
@@ -64,6 +72,7 @@
 
 - (void)write:(NSData*)data withKey:(NSString*)key {
     key = [@"_" stringByAppendingString:key];
+    [self.memoryCache setObject:data forKey:key];
     dispatch_sync(metaQueue, ^{
         unsigned long long int currentSize = 0;
         for (NSDictionary* dict in self.objects.allValues) {
