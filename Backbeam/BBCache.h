@@ -18,4 +18,6 @@
 
 - (void)clear;
 
+- (void)setMaxCacheSize:(unsigned long long int)maxCacheSize;
+
 @end

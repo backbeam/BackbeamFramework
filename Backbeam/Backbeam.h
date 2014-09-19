@@ -133,6 +133,10 @@
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 
++ (void)setMaxCacheSize:(unsigned long long int)maxCacheSize;
+
++ (void)setSessionFileProtectionOptions:(NSDataWritingOptions)options;
+
 + (BBTwitterSignupViewController*)twitterSignupViewController;
 
 + (BBLinkedInSignupViewController*)linkedInSignupViewController;

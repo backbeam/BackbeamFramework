@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**Version 1.0.2 - Sep 19, 2014**
+
+Added ability to set the max cache size with `[Backbeam setMaxCacheSize:size]` and ability to set custom writing options to the internal file that stores the seession information: `[Backbeam setSessionFileProtectionOptions:NSDataWritingFileProtectionCompleteUnlessOpen]`. By default the file protection is `NSDataWritingFileProtectionComplete`.
+
 **Version 1.0.1 - Jun 10, 2014**
 
 Improved internal cache.

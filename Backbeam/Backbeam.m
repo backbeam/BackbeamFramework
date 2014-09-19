@@ -72,6 +72,7 @@
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 @property (nonatomic, strong) SocketIO *socketio;
+@property (nonatomic, assign) NSDataWritingOptions fileProtectionOptions;
 #endif
 @property (nonatomic, assign) NSInteger delay;
 
@@ -123,8 +124,16 @@
         self.roomDelegates = [[NSMutableDictionary alloc] init];
         self.realTimeDelegates = [[NSMutableArray alloc] init];
         self._protocol = @"http";
+        
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+        self.fileProtectionOptions = NSDataWritingFileProtectionComplete;
+#endif
     }
     return self;
+}
+
+- (void)setMaxCacheSize:(unsigned long long int)maxCacheSize {
+    [self.queryCache setMaxCacheSize:maxCacheSize];
 }
 
 - (void)setHost:(NSString*)host port:(NSInteger)port {
@@ -182,6 +191,11 @@
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+
+- (void)setSessionFileProtectionOptions:(NSDataWritingOptions)options {
+    self.fileProtectionOptions = options;
+}
+
 - (void)connect {
     for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
         [delegate realTimeConnecting];
@@ -1236,7 +1250,7 @@
         NSDictionary* dict = [NSDictionary dictionaryWithObjectsAndKeys:authCode, @"auth", user, @"user", nil];
         NSData* data = [NSKeyedArchiver archivedDataWithRootObject:dict];
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-        [data writeToFile:[self userPath] options:NSDataWritingAtomic|NSDataWritingFileProtectionComplete error:nil];
+        [data writeToFile:[self userPath] options:NSDataWritingAtomic|self.fileProtectionOptions error:nil];
 #else
         [data writeToFile:[self userPath] options:NSDataWritingAtomic error:nil];
 #endif
@@ -1659,6 +1673,10 @@
 
 @implementation Backbeam
 
++ (void)setMaxCacheSize:(unsigned long long int)maxCacheSize {
+    [[BackbeamSession instance] setMaxCacheSize:maxCacheSize];
+}
+
 + (void)setHost:(NSString*)host port:(NSInteger)port {
     [[BackbeamSession instance] setHost:host port:port];
 }
@@ -1962,6 +1980,10 @@
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
++ (void)setSessionFileProtectionOptions:(NSDataWritingOptions)options {
+    [[BackbeamSession instance] setSessionFileProtectionOptions:options];
+}
+
 + (void)enableRealTime {
     [[BackbeamSession instance] enableRealTime];
 }

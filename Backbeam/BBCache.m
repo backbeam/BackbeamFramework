@@ -48,6 +48,10 @@
     return self;
 }
 
+- (void)setMaxCacheSize:(unsigned long long int)maxCacheSize {
+    self.maxSize = maxCacheSize;
+}
+
 - (NSData*)read:(NSString*)key {
     key = [@"_" stringByAppendingString:key];
     __block NSData* data = [self.memoryCache objectForKey:key];
