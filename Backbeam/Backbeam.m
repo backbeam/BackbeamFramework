@@ -378,19 +378,20 @@
 - (void)socketIO:(SocketIO *)socket didSendMessage:(SocketIOPacket *)packet {
 }
 
-- (void)socketIOHandshakeFailed:(SocketIO *)socket {
-    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
-        [delegate realTimeConnectionFailed:[BBError errorWithStatus:@"HandshakeFailed" result:nil]];
-    }
-    [self connectAfterDelay];
-}
-
-- (void)socketIO:(SocketIO *)socket failedToConnectWithError:(NSError *)error {
+- (void)socketIODidDisconnect:(SocketIO *)socket disconnectedWithError:(NSError *)error {
     for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
         [delegate realTimeConnectionFailed:error];
     }
     [self connectAfterDelay];
 }
+
+- (void)socketIO:(SocketIO *)socket onError:(NSError *)error {
+    for (id<BBRealTimeConnectionDelegate> delegate in self.realTimeDelegates) {
+        [delegate realTimeConnectionFailed:error];
+    }
+    [self connectAfterDelay];
+}
+
 
 - (void)subscribeToRealTimeConnectionEvents:(id<BBRealTimeConnectionDelegate>)delegate {
     [self.realTimeDelegates addObject:delegate];
