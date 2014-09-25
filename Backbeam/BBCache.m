@@ -52,25 +52,48 @@
     self.maxSize = maxCacheSize;
 }
 
-- (NSData*)read:(NSString*)key {
+- (void)read:(NSString*)key threshold:(NSInteger)threshold completion:(CacheRead)completion {
+    if (!key) {
+        return completion(nil);
+    }
     key = [@"_" stringByAppendingString:key];
-    __block NSData* data = [self.memoryCache objectForKey:key];
+    NSData *data = [self.memoryCache objectForKey:key];
     if (data) {
-        return data;
+        return completion(data);
     }
     dispatch_sync(metaQueue, ^{
         NSMutableDictionary* info = [self.objects objectForKey:key];
         if (info) {
             [info setObject:[NSDate date] forKey:key];
-            data = [NSData dataWithContentsOfFile:[self pathForKey:key]];
-            if (!data) {
-                [self.objects removeObjectForKey:key]; // if the file has been removed for any reason
+            
+            NSInteger size = [info numberForKey:@"size"].integerValue;
+            if (size > threshold) {
+                dispatch_async(metaQueue, ^{
+                    NSData *data = [self readDataAndUpdateMetadata:key];
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        completion(data);
+                    });
+                });
             } else {
-                [self.memoryCache setObject:data forKey:key];
+                NSData *data = [self readDataAndUpdateMetadata:key];
+                dispatch_sync(dispatch_get_main_queue(), ^{
+                    completion(data);
+                });
             }
-            [self saveMetadata];
+        } else {
+            return completion(nil);
         }
     });
+}
+
+- (NSData*)readDataAndUpdateMetadata:(NSString*)key {
+    NSData *data = [NSData dataWithContentsOfFile:[self pathForKey:key]];
+    if (!data) {
+        [self.objects removeObjectForKey:key]; // if the file has been removed for any reason
+    } else {
+        [self.memoryCache setObject:data forKey:key];
+    }
+    [self saveMetadata];
     return data;
 }
 
@@ -120,7 +143,9 @@
 }
 
 - (void)saveMetadata {
-    [NSKeyedArchiver archiveRootObject:self.objects toFile:self.metaFile];
+    dispatch_async(diskQueue, ^{
+        [NSKeyedArchiver archiveRootObject:self.objects toFile:self.metaFile];
+    });
 }
 
 - (void)clear {

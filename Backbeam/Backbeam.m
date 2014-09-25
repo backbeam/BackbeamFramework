@@ -76,6 +76,8 @@
 #endif
 @property (nonatomic, assign) NSInteger delay;
 
+@property (nonatomic, assign) NSInteger cacheThreshold;
+
 @end
 
 @interface Backbeam ()
@@ -124,12 +126,17 @@
         self.roomDelegates = [[NSMutableDictionary alloc] init];
         self.realTimeDelegates = [[NSMutableArray alloc] init];
         self._protocol = @"http";
+        self.cacheThreshold = 1024*10;
         
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
         self.fileProtectionOptions = NSDataWritingFileProtectionComplete;
 #endif
     }
     return self;
+}
+
+- (void)setCacheThreshold:(NSInteger)cacheThreshold {
+    self.cacheThreshold = cacheThreshold;
 }
 
 - (void)setMaxCacheSize:(unsigned long long int)maxCacheSize {
@@ -575,57 +582,59 @@
     if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
         cacheKey = [self cacheString:params];
     }
-    if (useCache) {
-        NSData* data = [self.queryCache read:cacheKey];
-        BOOL read = NO;
-        if (data) {
-            id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
-            if (result) {
-                read = YES;
-                if (success) {
-                    [[NSOperationQueue currentQueue] addOperationWithBlock:^{
-                        success(result, YES);
-                    }];
-                }
-                if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
-                    return;
+    
+    [self.queryCache read:useCache ? cacheKey : nil threshold:self.cacheThreshold completion:^(NSData *data) {
+        if (useCache) {
+            BOOL read = NO;
+            if (data) {
+                id result = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:nil];
+                if (result) {
+                    read = YES;
+                    if (success) {
+                        [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                            success(result, YES);
+                        }];
+                    }
+                    if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
+                        return;
+                    }
                 }
             }
-        }
-        if (fetchPolicy == BBFetchPolicyLocalOnly) {
-            if (!read && failure) {
-                failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
+            if (fetchPolicy == BBFetchPolicyLocalOnly) {
+                if (!read && failure) {
+                    failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
+                }
+                return;
             }
-            return;
-        }
-    }
-    
-    [params setObject:[BBUtils nonce] forKey:@"nonce"];
-    [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
-    [params setObject:[self signature:params] forKey:@"signature"];
-    [params removeObjectForKey:@"method"];
-    [params removeObjectForKey:@"path"];
-    
-    NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
-    NSMutableURLRequest *request = [[[AFHTTPRequestSerializer alloc] init] requestWithMethod:httpMethod URLString:urlString parameters:params error:nil]; // TODO: error
-    [request setHTTPMethod:httpMethod];
-    AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
-    operation.responseSerializer = [AFJSONResponseSerializer serializer];
-    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
-        if (success) {
-            success(responseObject, NO);
         }
         
-        if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
-            [self.queryCache write:operation.responseData withKey:cacheKey];
-        }
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        if (failure) {
-            failure(operation.responseObject, error);
-        }
+        [params setObject:[BBUtils nonce] forKey:@"nonce"];
+        [params setObject:[NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970]*1000)] forKey:@"time"];
+        [params setObject:[self signature:params] forKey:@"signature"];
+        [params removeObjectForKey:@"method"];
+        [params removeObjectForKey:@"path"];
+        
+        NSString *urlString = [[self apiBaseURL] stringByAppendingString:path];
+        NSMutableURLRequest *request = [[[AFHTTPRequestSerializer alloc] init] requestWithMethod:httpMethod URLString:urlString parameters:params error:nil]; // TODO: error
+        [request setHTTPMethod:httpMethod];
+        AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+        operation.responseSerializer = [AFJSONResponseSerializer serializer];
+        [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
+            if (success) {
+                success(responseObject, NO);
+            }
+            
+            if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
+                [self.queryCache write:operation.responseData withKey:cacheKey];
+            }
+        } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+            if (failure) {
+                failure(operation.responseObject, error);
+            }
+        }];
+        
+        [operation start];
     }];
-    
-    [operation start];
 }
 
 - (void)checkInvalidAuthCode:(id)result {
@@ -704,57 +713,59 @@
         NSString *cacheKeyString = [self cacheString:prms];
         cacheKey = [BBUtils hexString:[BBUtils sha1:[cacheKeyString dataUsingEncoding:NSUTF8StringEncoding]]];
     }
-    if (useCache) {
-        NSData* data = [self.queryCache read:cacheKey];
-        BOOL read = NO;
-        if (data) {
+    [self.queryCache read:useCache ? cacheKey : nil threshold:self.cacheThreshold completion:^(NSData *data) {
+        if (useCache) {
+            BOOL read = NO;
             if (data) {
-                read = YES;
-                if (success) {
-                    [[NSOperationQueue currentQueue] addOperationWithBlock:^{
-                        success(data, YES, nil);
-                    }];
-                }
-                if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
-                    return;
+                if (data) {
+                    read = YES;
+                    if (success) {
+                        [[NSOperationQueue currentQueue] addOperationWithBlock:^{
+                            success(data, YES, nil);
+                        }];
+                    }
+                    if (fetchPolicy == BBFetchPolicyLocalOrRemote) {
+                        return;
+                    }
                 }
             }
-        }
-        if (fetchPolicy == BBFetchPolicyLocalOnly) {
-            if (!read && failure) {
-                failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
+            if (fetchPolicy == BBFetchPolicyLocalOnly) {
+                if (!read && failure) {
+                    failure(nil, [BBError errorWithStatus:@"CachedDataNotFound" result:nil]);
+                }
+                return;
             }
-            return;
         }
-    }
-    
-    AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
-    [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
-        if (success) {
-            success(operation.responseData, NO, operation.response);
+        
+        AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+        [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
+            if (success) {
+                success(operation.responseData, NO, operation.response);
+            }
+            if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
+                [self.queryCache write:operation.responseData withKey:cacheKey];
+            }
+        } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+            if (failure) {
+                failure(operation.responseData, error);
+            }
+        }];
+        
+        if (downloadProgress) {
+            [operation setDownloadProgressBlock:^(NSUInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
+                downloadProgress(bytesRead, totalBytesRead, totalBytesExpectedToRead);
+            }];
         }
-        if (useCache || fetchPolicy == BBFetchPolicyRemoteAndStore) {
-            [self.queryCache write:operation.responseData withKey:cacheKey];
+        
+        if (uploadProgress) {
+            [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
+                uploadProgress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
+            }];
         }
-    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-        if (failure) {
-            failure(operation.responseData, error);
-        }
+        
+        [operation start];
     }];
     
-    if (downloadProgress) {
-        [operation setDownloadProgressBlock:^(NSUInteger bytesRead, long long totalBytesRead, long long totalBytesExpectedToRead) {
-            downloadProgress(bytesRead, totalBytesRead, totalBytesExpectedToRead);
-        }];
-    }
-    
-    if (uploadProgress) {
-        [operation setUploadProgressBlock:^(NSUInteger bytesWritten, long long totalBytesWritten, long long totalBytesExpectedToWrite) {
-            uploadProgress(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
-        }];
-    }
-    
-    [operation start];
 }
 
 - (void)requestJSONFromController:(NSString*)path
@@ -1673,6 +1684,10 @@
 @end
 
 @implementation Backbeam
+
++ (void)setCacheThreshold:(NSInteger)threshold {
+    [[BackbeamSession instance] setCacheThreshold:threshold];
+}
 
 + (void)setMaxCacheSize:(unsigned long long int)maxCacheSize {
     [[BackbeamSession instance] setMaxCacheSize:maxCacheSize];

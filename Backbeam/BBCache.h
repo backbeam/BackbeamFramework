@@ -8,11 +8,13 @@
 
 #import <Foundation/Foundation.h>
 
+typedef void(^CacheRead)(NSData *data);
+
 @interface BBCache : NSObject
 
 - (id)initWithDirectory:(NSString*)cacheDir maxSize:(unsigned long long int)maxCacheSize;
 
-- (NSData*)read:(NSString*)key;
+- (void)read:(NSString*)key threshold:(NSInteger)threshold completion:(CacheRead)completion;
 
 - (void)write:(NSData*)data withKey:(NSString*)key;
 

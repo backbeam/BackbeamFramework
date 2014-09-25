@@ -133,6 +133,8 @@
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
 
++ (void)setCacheThreshold:(NSInteger)threshold;
+
 + (void)setMaxCacheSize:(unsigned long long int)maxCacheSize;
 
 + (void)setSessionFileProtectionOptions:(NSDataWritingOptions)options;
