@@ -38,10 +38,10 @@
         self.maxSize = maxCacheSize;
         
         diskQueue = dispatch_queue_create("io.backbeam.cache.disk", DISPATCH_QUEUE_CONCURRENT);
-		dispatch_set_target_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), diskQueue);
+        dispatch_set_target_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), diskQueue);
         
         metaQueue = dispatch_queue_create("io.backbeam.cache.meta", DISPATCH_QUEUE_SERIAL);
-		dispatch_set_target_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), metaQueue);
+        dispatch_set_target_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), metaQueue);
         
         self.memoryCache = [[NSCache alloc] init];
     }
@@ -61,29 +61,29 @@
     if (data) {
         return completion(data);
     }
+    __block NSNumber *size = nil;
     dispatch_sync(metaQueue, ^{
-        NSMutableDictionary* info = [self.objects objectForKey:key];
+        NSMutableDictionary *info = [self.objects objectForKey:key];
         if (info) {
             [info setObject:[NSDate date] forKey:key];
-            
-            NSInteger size = [info numberForKey:@"size"].integerValue;
-            if (size > threshold) {
-                dispatch_async(metaQueue, ^{
-                    NSData *data = [self readDataAndUpdateMetadata:key];
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        completion(data);
-                    });
-                });
-            } else {
-                NSData *data = [self readDataAndUpdateMetadata:key];
-                dispatch_sync(dispatch_get_main_queue(), ^{
-                    completion(data);
-                });
-            }
-        } else {
-            return completion(nil);
+            size = [info numberForKey:@"size"];
         }
     });
+    
+    if (!size) {
+        return completion(nil);
+    }
+    
+    if (size.integerValue > threshold) {
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0ul), ^{
+            NSData *data = [self readDataAndUpdateMetadata:key];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                completion(data);
+            });
+        });
+    } else {
+        completion([self readDataAndUpdateMetadata:key]);
+    }
 }
 
 - (NSData*)readDataAndUpdateMetadata:(NSString*)key {

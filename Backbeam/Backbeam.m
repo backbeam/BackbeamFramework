@@ -135,10 +135,6 @@
     return self;
 }
 
-- (void)setCacheThreshold:(NSInteger)cacheThreshold {
-    self.cacheThreshold = cacheThreshold;
-}
-
 - (void)setMaxCacheSize:(unsigned long long int)maxCacheSize {
     [self.queryCache setMaxCacheSize:maxCacheSize];
 }
