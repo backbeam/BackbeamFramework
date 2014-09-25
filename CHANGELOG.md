@@ -1,6 +1,10 @@
 Changelog
 =========
 
+**Version 1.0.4 - Sep 22, 2014**
+
+Asynchronous access to the builtin cache. Depending on a threshold the cache is accessed syncrhonously or asynchronously. The default threashold is 1Kb. It can be changed with `[Backbeam setCacheThreshold:threshold]`
+
 **Version 1.0.3 - Sep 22, 2014**
 
 Improved realtime reliability.
