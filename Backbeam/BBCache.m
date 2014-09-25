@@ -143,7 +143,7 @@
 }
 
 - (void)saveMetadata {
-    dispatch_async(diskQueue, ^{
+    dispatch_async(metaQueue, ^{
         [NSKeyedArchiver archiveRootObject:self.objects toFile:self.metaFile];
     });
 }
