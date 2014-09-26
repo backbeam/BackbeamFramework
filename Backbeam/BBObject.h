@@ -130,17 +130,17 @@
 // methods for files
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-- (UIImage*)imageWithSize:(CGSize)size
-                  success:(SuccessImageBlock)success;
+- (void)imageWithSize:(CGSize)size
+              success:(SuccessImageBlock)success;
 
-- (UIImage*)imageWithSize:(CGSize)size
-                  success:(SuccessImageBlock)success
-                  failure:(FailureObjectBlock)failure;
+- (void)imageWithSize:(CGSize)size
+              success:(SuccessImageBlock)success
+              failure:(FailureObjectBlock)failure;
 
-- (UIImage*)imageWithSize:(CGSize)size
-                 progress:(ProgressDataBlock)progress
-                  success:(SuccessImageBlock)success
-                  failure:(FailureObjectBlock)failure;
+- (void)imageWithSize:(CGSize)size
+             progress:(ProgressDataBlock)progress
+              success:(SuccessImageBlock)success
+              failure:(FailureObjectBlock)failure;
 #endif
 
 // upload data

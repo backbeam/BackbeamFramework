@@ -567,22 +567,23 @@
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-- (UIImage*)imageWithSize:(CGSize)size
-                  success:(SuccessImageBlock)success {
+
+- (void)imageWithSize:(CGSize)size
+              success:(SuccessImageBlock)success {
     
     NSNumber* version = [self numberForField:@"version"];
-    return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
+    [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         // ignore
         NSLog(@"error %@", error);
     }];
 }
 
-- (UIImage*)imageWithSize:(CGSize)size
-                  success:(SuccessImageBlock)success
-                  failure:(FailureObjectBlock)failure {
+- (void)imageWithSize:(CGSize)size
+              success:(SuccessImageBlock)success
+              failure:(FailureObjectBlock)failure {
     
     NSNumber* version = [self numberForField:@"version"];
-    return [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
+    [self._session image:self._identifier version:version withSize:size progress:nil success:success failure:^(NSError* error) {
         if (failure) {
             failure(self, error);
         }
@@ -590,13 +591,13 @@
 }
 
 
-- (UIImage*)imageWithSize:(CGSize)size
-                 progress:(ProgressDataBlock)progress
-                  success:(SuccessImageBlock)success
-                  failure:(FailureObjectBlock)failure {
+- (void)imageWithSize:(CGSize)size
+             progress:(ProgressDataBlock)progress
+              success:(SuccessImageBlock)success
+              failure:(FailureObjectBlock)failure {
     
     NSNumber* version = [self numberForField:@"version"];
-    return [self._session image:self._identifier version:version withSize:size progress:progress success:success failure:^(NSError* error) {
+    [self._session image:self._identifier version:version withSize:size progress:progress success:success failure:^(NSError* error) {
         if (failure) {
             failure(self, error);
         }

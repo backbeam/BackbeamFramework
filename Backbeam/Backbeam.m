@@ -984,12 +984,12 @@
 }
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-- (UIImage*)image:(NSString*)identifier
-          version:(NSNumber*)version
-         withSize:(CGSize)size
-         progress:(ProgressDataBlock)progress
-          success:(SuccessImageBlock)success
-          failure:(FailureBlock)failure {
+- (void)image:(NSString*)identifier
+      version:(NSNumber*)version
+     withSize:(CGSize)size
+     progress:(ProgressDataBlock)progress
+      success:(SuccessImageBlock)success
+      failure:(FailureBlock)failure {
     
     CGFloat scale = [UIScreen mainScreen].scale;
     NSString* width  = [NSString stringWithFormat:@"%d", (int)(size.width *scale)];
@@ -1015,7 +1015,12 @@
                                                                                        error:nil];
 
     UIImage* img = [self.imageCache objectForKey:cacheKey];
-    if (img) return img;
+    if (img) {
+        if (success) {
+            success(img, YES);
+        }
+        return;
+    }
     
     [self download:request progress:progress success:^(NSData* data) {
         UIImage* img = [UIImage imageWithData:data scale:scale];
@@ -1023,13 +1028,12 @@
         if (img) {
             [self.imageCache setObject:img forKey:cacheKey];
             if (success) {
-                success(img);
+                success(img, NO);
             }
         } else if (failure) {
             failure([BBError errorWithStatus:@"InvalidImage" result:nil]);
         }
     } failure:failure];
-    return nil;
 }
 #endif
 

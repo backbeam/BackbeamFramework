@@ -40,7 +40,7 @@ typedef void(^FailureBlock)(NSError *err);
 
 
 #if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-typedef void(^SuccessImageBlock)(UIImage *img);
+typedef void(^SuccessImageBlock)(UIImage *img, BOOL sync);
 #endif
 
 typedef void(^SuccessArrayBlock)(NSArray *array);
